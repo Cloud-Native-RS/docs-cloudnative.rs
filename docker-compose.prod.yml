@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  cn-docs:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "80:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_TELEMETRY_DISABLED=1
+    restart: unless-stopped
+    container_name: cloud-native-docs-prod
+    networks:
+      - cn-docs-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  cn-docs-network:
+    driver: bridge
