@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  cloud-native-docs:
+    image: darioristic/cloud-native-docs:latest
+    container_name: cloud-native-docs
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_TELEMETRY_DISABLED=1
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.cn-docs.rule=Host(`docs.your-domain.com`)"
+      - "traefik.http.routers.cn-docs.tls=true"
+      - "traefik.http.routers.cn-docs.tls.certresolver=letsencrypt"
+      - "traefik.http.services.cn-docs.loadbalancer.server.port=3000"

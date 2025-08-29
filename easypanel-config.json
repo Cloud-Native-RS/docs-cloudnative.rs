@@ -1,0 +1,43 @@
+{
+  "name": "cloud-native-docs",
+  "description": "Cloud Native Documentation Site",
+  "image": "darioristic/cloud-native-docs:latest",
+  "ports": [
+    {
+      "published": 80,
+      "target": 3000,
+      "protocol": "tcp"
+    }
+  ],
+  "environment": {
+    "NODE_ENV": "production",
+    "NEXT_TELEMETRY_DISABLED": "1"
+  },
+  "restart": "unless-stopped",
+  "healthcheck": {
+    "test": ["CMD-SHELL", "curl -f http://localhost:3000 || exit 1"],
+    "interval": "30s",
+    "timeout": "10s",
+    "retries": 3,
+    "start_period": "40s"
+  },
+  "resources": {
+    "memory": "1GB",
+    "cpu": "1",
+    "storage": "2GB"
+  },
+  "domains": [
+    {
+      "domain": "docs.your-domain.com",
+      "ssl": true,
+      "redirect_www": false
+    }
+  ],
+  "volumes": [],
+  "networks": ["default"],
+  "labels": {
+    "app": "cloud-native-docs",
+    "version": "latest",
+    "environment": "production"
+  }
+}
