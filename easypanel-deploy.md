@@ -10,7 +10,8 @@
 ### Step 2: Configure Docker Image
 ```
 Image: darioristic/cloud-native-docs:latest
-Port: 3000
+Container Port: 3000
+Published Port: 8080
 ```
 
 ### Step 3: Environment Variables
@@ -35,8 +36,9 @@ NEXT_TELEMETRY_DISABLED=1
 ```yaml
 # Build settings
 Build Command: docker build -t app .
-Start Command: docker run -p 3000:3000 app
-Port: 3000
+Start Command: docker run -p 8080:3000 app
+Container Port: 3000
+Published Port: 8080
 ```
 
 ### Step 3: Environment Variables
@@ -77,7 +79,7 @@ services:
   cn-docs:
     image: darioristic/cloud-native-docs:latest
     ports:
-      - "3000:3000"
+      - "8080:3000"
     environment:
       - NODE_ENV=production
       - NEXT_TELEMETRY_DISABLED=1
@@ -97,7 +99,7 @@ services:
   "image": "darioristic/cloud-native-docs:latest",
   "ports": [
     {
-      "published": 80,
+      "published": 8080,
       "target": 3000,
       "protocol": "tcp"
     }
@@ -122,11 +124,13 @@ services:
 - **Memory**: 512MB RAM
 - **CPU**: 0.5 vCPU
 - **Storage**: 2GB
+- **Port**: 8080 (avoid port 3000 conflict with EasyPanel)
 
 ### Recommended for Production:
 - **Memory**: 1GB RAM
 - **CPU**: 1 vCPU
 - **Storage**: 5GB
+- **Port**: 8080
 
 ## Custom Domain Configuration
 
@@ -177,9 +181,15 @@ STAGE=production
 
 ### Health Check Endpoint
 ```
-GET http://your-domain.com/
+GET http://your-domain.com:8080/
 Status: 200 OK
 ```
+
+### Port Configuration Note
+**Important**: EasyPanel usually runs on port 3000, so we use port 8080 for our application to avoid conflicts:
+- **Container Port**: 3000 (internal)
+- **Published Port**: 8080 (external)
+- **Access URL**: http://your-server-ip:8080
 
 ## Scaling Configuration
 
@@ -234,7 +244,7 @@ Status: 200 OK
 ### Debug Commands:
 ```bash
 # Check if service is responding
-curl -I http://your-domain.com
+curl -I http://your-server-ip:8080
 
 # Check Docker container status
 docker ps | grep cloud-native-docs

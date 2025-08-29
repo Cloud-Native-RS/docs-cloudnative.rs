@@ -4,7 +4,7 @@
   "image": "darioristic/cloud-native-docs:latest",
   "ports": [
     {
-      "published": 80,
+      "published": 8080,
       "target": 3000,
       "protocol": "tcp"
     }
