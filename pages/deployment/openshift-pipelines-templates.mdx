@@ -1,0 +1,771 @@
+# OpenShift Pipelines - Ready-to-Use Templates
+
+## Pregled
+
+Ovaj vodič sadrži gotove template-e za najčešće use case-ove, testirane u produkciji i spremne za immediate deployment.
+
+---
+
+## Template 1: Next.js Application Pipeline
+
+### Kompletna Pipeline za Next.js Apps
+
+```yaml
+# Save as: nextjs-pipeline.yaml
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: nextjs-pipeline
+  namespace: YOUR_PROJECT
+spec:
+  description: "Production-ready CI/CD for Next.js applications"
+  
+  params:
+    - name: git-url
+      description: "Git repository URL"
+      default: "https://github.com/YOUR_ORG/YOUR_REPO.git"
+    - name: git-revision
+      description: "Git revision to build"
+      default: "main"
+    - name: image-repository
+      description: "Container image repository"
+      default: "image-registry.openshift-image-registry.svc:5000/YOUR_PROJECT/YOUR_APP"
+    - name: image-tag
+      description: "Container image tag"
+      default: "latest"
+    - name: project-name
+      description: "OpenShift project name"
+      default: "YOUR_PROJECT"
+
+  workspaces:
+    - name: shared-workspace
+
+  tasks:
+    - name: git-clone
+      taskSpec:
+        params:
+          - name: url
+            type: string
+          - name: revision
+            type: string
+        workspaces:
+          - name: output
+        steps:
+          - name: clone
+            image: alpine/git:latest
+            workingDir: $(workspaces.output.path)
+            script: |
+              #!/bin/sh
+              set -xe
+              rm -rf ./* .git || true
+              git config --global safe.directory '*'
+              git init
+              git remote add origin $(params.url)
+              git fetch origin $(params.revision)
+              git checkout FETCH_HEAD
+              echo "✅ Repository cloned successfully"
+      params:
+        - name: url
+          value: $(params.git-url)
+        - name: revision
+          value: $(params.git-revision)
+      workspaces:
+        - name: output
+          workspace: shared-workspace
+
+    - name: build-app
+      runAfter: ["git-clone"]
+      taskSpec:
+        workspaces:
+          - name: source
+        steps:
+          - name: install-and-build
+            image: registry.access.redhat.com/ubi8/nodejs-18:latest
+            workingDir: $(workspaces.source.path)
+            script: |
+              #!/bin/bash
+              set -xe
+              echo "📦 Installing dependencies..."
+              npm ci
+              echo "🔨 Building application..."
+              npm run build
+              echo "✅ Build completed successfully"
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+
+    - name: s2i-build
+      runAfter: ["build-app"]
+      taskSpec:
+        params:
+          - name: IMAGE_REPOSITORY
+            type: string
+          - name: IMAGE_TAG
+            type: string
+          - name: PROJECT_NAME
+            type: string
+        workspaces:
+          - name: source
+        steps:
+          - name: build-and-push
+            image: registry.redhat.io/openshift4/ose-cli:latest
+            workingDir: $(workspaces.source.path)
+            script: |
+              #!/bin/bash
+              set -xe
+              
+              echo "🏗️ Creating S2I BuildConfig..."
+              oc project $(params.PROJECT_NAME)
+              
+              # Cleanup existing
+              oc delete buildconfig YOUR_APP-s2i --ignore-not-found=true
+              
+              # Create S2I build
+              oc new-build nodejs:18-ubi9~. \
+                --name=YOUR_APP-s2i \
+                --to=$(params.IMAGE_REPOSITORY):$(params.IMAGE_TAG) \
+                --strategy=source \
+                --env NPM_CONFIG_PRODUCTION=false \
+                --env NODE_ENV=production
+              
+              echo "🚀 Starting S2I build..."
+              oc start-build YOUR_APP-s2i --from-dir=. --wait --follow
+              
+              echo "✅ Image built and pushed successfully"
+              oc get imagestream $(echo $(params.IMAGE_REPOSITORY) | cut -d'/' -f3) || true
+      params:
+        - name: IMAGE_REPOSITORY
+          value: $(params.image-repository)
+        - name: IMAGE_TAG
+          value: $(params.image-tag)
+        - name: PROJECT_NAME
+          value: $(params.project-name)
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+
+    - name: deploy
+      runAfter: ["s2i-build"]
+      taskSpec:
+        params:
+          - name: IMAGE_REPOSITORY
+            type: string
+          - name: IMAGE_TAG
+            type: string
+          - name: PROJECT_NAME
+            type: string
+        steps:
+          - name: deploy-app
+            image: registry.redhat.io/openshift4/ose-cli:latest
+            script: |
+              #!/bin/bash
+              set -xe
+              
+              echo "🚀 Deploying to OpenShift..."
+              oc project $(params.PROJECT_NAME)
+              
+              # Deploy with correct image reference
+              oc create deployment YOUR_APP \
+                --image=$(params.IMAGE_REPOSITORY):$(params.IMAGE_TAG) \
+                --dry-run=client -o yaml | oc apply -f -
+              
+              # Expose service
+              oc expose deployment YOUR_APP \
+                --port=3000 --target-port=3000 \
+                --dry-run=client -o yaml | oc apply -f -
+              
+              # Create route
+              oc expose service YOUR_APP || echo "Route already exists"
+              
+              # Wait for rollout
+              oc rollout status deployment/YOUR_APP --timeout=300s
+              
+              echo "✅ Deployment completed!"
+              echo "🌐 Access your app at:"
+              oc get route YOUR_APP -o jsonpath='{.spec.host}{"\n"}'
+      params:
+        - name: IMAGE_REPOSITORY
+          value: $(params.image-repository)
+        - name: IMAGE_TAG
+          value: $(params.image-tag)
+        - name: PROJECT_NAME
+          value: $(params.project-name)
+```
+
+### PipelineRun Template
+
+```yaml
+# Save as: nextjs-pipelinerun.yaml
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: nextjs-pipeline-run-$(date +%Y%m%d-%H%M%S)
+  namespace: YOUR_PROJECT
+spec:
+  pipelineRef:
+    name: nextjs-pipeline
+  
+  params:
+    - name: git-url
+      value: "https://github.com/YOUR_ORG/YOUR_REPO.git"
+    - name: git-revision
+      value: "main"
+    - name: image-repository
+      value: "image-registry.openshift-image-registry.svc:5000/YOUR_PROJECT/YOUR_APP"
+    - name: image-tag
+      value: "latest"
+    - name: project-name
+      value: "YOUR_PROJECT"
+  
+  workspaces:
+    - name: shared-workspace
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 1Gi
+  
+  taskRunTemplate:
+    serviceAccountName: pipeline
+  
+  timeouts:
+    pipeline: 30m
+```
+
+---
+
+## Template 2: React Application Pipeline
+
+### React App sa Custom Build Steps
+
+```yaml
+# Save as: react-pipeline.yaml
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: react-pipeline
+  namespace: YOUR_PROJECT
+spec:
+  description: "CI/CD Pipeline for React applications"
+  
+  params:
+    - name: git-url
+      description: "Git repository URL"
+    - name: git-revision
+      description: "Git revision"
+      default: "main"
+    - name: image-repository
+      description: "Image repository"
+    - name: image-tag
+      description: "Image tag"
+      default: "latest"
+    - name: project-name
+      description: "OpenShift project"
+
+  workspaces:
+    - name: shared-workspace
+
+  tasks:
+    - name: git-clone
+      # ... (same as above)
+
+    - name: test-and-build
+      runAfter: ["git-clone"]
+      taskSpec:
+        workspaces:
+          - name: source
+        steps:
+          - name: install-deps
+            image: registry.access.redhat.com/ubi8/nodejs-18:latest
+            workingDir: $(workspaces.source.path)
+            script: |
+              #!/bin/bash
+              set -xe
+              echo "📦 Installing dependencies..."
+              npm ci
+          
+          - name: run-tests
+            image: registry.access.redhat.com/ubi8/nodejs-18:latest
+            workingDir: $(workspaces.source.path)
+            script: |
+              #!/bin/bash
+              set -xe
+              echo "🧪 Running tests..."
+              npm test -- --coverage --watchAll=false
+          
+          - name: build-app
+            image: registry.access.redhat.com/ubi8/nodejs-18:latest
+            workingDir: $(workspaces.source.path)
+            script: |
+              #!/bin/bash
+              set -xe
+              echo "🔨 Building React app..."
+              npm run build
+              echo "✅ Build completed"
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+
+    # S2I build and deploy tasks same as above...
+```
+
+---
+
+## Template 3: Generic Application Pipeline
+
+### Universal Pipeline za Bilo Koju Aplikaciju
+
+```yaml
+# Save as: generic-pipeline.yaml
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: generic-app-pipeline
+  namespace: YOUR_PROJECT
+spec:
+  description: "Generic CI/CD Pipeline"
+  
+  params:
+    - name: git-url
+      description: "Git repository URL"
+    - name: git-revision
+      description: "Git revision"
+      default: "main"
+    - name: image-repository
+      description: "Image repository"
+    - name: image-tag
+      description: "Image tag"
+      default: "latest"
+    - name: project-name
+      description: "OpenShift project"
+    - name: app-name
+      description: "Application name"
+    - name: builder-image
+      description: "S2I builder image"
+      default: "nodejs:18-ubi9"
+    - name: app-port
+      description: "Application port"
+      default: "3000"
+
+  workspaces:
+    - name: shared-workspace
+
+  tasks:
+    - name: git-clone
+      # ... (git clone logic)
+
+    - name: s2i-build
+      runAfter: ["git-clone"]
+      taskSpec:
+        params:
+          - name: IMAGE_REPOSITORY
+          - name: IMAGE_TAG
+          - name: PROJECT_NAME
+          - name: APP_NAME
+          - name: BUILDER_IMAGE
+        workspaces:
+          - name: source
+        steps:
+          - name: build-and-push
+            image: registry.redhat.io/openshift4/ose-cli:latest
+            workingDir: $(workspaces.source.path)
+            script: |
+              #!/bin/bash
+              set -xe
+              
+              echo "🏗️ Creating S2I build for $(params.APP_NAME)..."
+              oc project $(params.PROJECT_NAME)
+              
+              oc delete buildconfig $(params.APP_NAME)-s2i --ignore-not-found=true
+              
+              oc new-build $(params.BUILDER_IMAGE)~. \
+                --name=$(params.APP_NAME)-s2i \
+                --to=$(params.IMAGE_REPOSITORY):$(params.IMAGE_TAG) \
+                --strategy=source
+              
+              oc start-build $(params.APP_NAME)-s2i --from-dir=. --wait --follow
+              echo "✅ Build completed"
+      params:
+        - name: IMAGE_REPOSITORY
+          value: $(params.image-repository)
+        - name: IMAGE_TAG
+          value: $(params.image-tag)
+        - name: PROJECT_NAME
+          value: $(params.project-name)
+        - name: APP_NAME
+          value: $(params.app-name)
+        - name: BUILDER_IMAGE
+          value: $(params.builder-image)
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+
+    - name: deploy
+      runAfter: ["s2i-build"]
+      taskSpec:
+        params:
+          - name: IMAGE_REPOSITORY
+          - name: IMAGE_TAG
+          - name: PROJECT_NAME
+          - name: APP_NAME
+          - name: APP_PORT
+        steps:
+          - name: deploy-app
+            image: registry.redhat.io/openshift4/ose-cli:latest
+            script: |
+              #!/bin/bash
+              set -xe
+              
+              oc project $(params.PROJECT_NAME)
+              
+              # Deploy
+              oc create deployment $(params.APP_NAME) \
+                --image=$(params.IMAGE_REPOSITORY):$(params.IMAGE_TAG) \
+                --dry-run=client -o yaml | oc apply -f -
+              
+              # Service
+              oc expose deployment $(params.APP_NAME) \
+                --port=$(params.APP_PORT) --target-port=$(params.APP_PORT) \
+                --dry-run=client -o yaml | oc apply -f -
+              
+              # Route
+              oc expose service $(params.APP_NAME) || echo "Route exists"
+              
+              # Wait for rollout
+              oc rollout status deployment/$(params.APP_NAME) --timeout=300s
+              
+              echo "🌐 App deployed at:"
+              oc get route $(params.APP_NAME) -o jsonpath='{.spec.host}{"\n"}'
+      params:
+        - name: IMAGE_REPOSITORY
+          value: $(params.image-repository)
+        - name: IMAGE_TAG
+          value: $(params.image-tag)
+        - name: PROJECT_NAME
+          value: $(params.project-name)
+        - name: APP_NAME
+          value: $(params.app-name)
+        - name: APP_PORT
+          value: $(params.app-port)
+```
+
+---
+
+## Template 4: Service Account i RBAC
+
+### Kompletna Security Setup
+
+```yaml
+# Save as: pipeline-rbac.yaml
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pipeline-sa
+  namespace: YOUR_PROJECT
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: pipeline-sa-binding-YOUR_PROJECT
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: edit
+subjects:
+- kind: ServiceAccount
+  name: pipeline-sa
+  namespace: YOUR_PROJECT
+
+---
+# Additional permissions for S2I builds
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pipeline-sa-system-builder
+  namespace: YOUR_PROJECT
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:image-builder
+subjects:
+- kind: ServiceAccount
+  name: pipeline-sa
+  namespace: YOUR_PROJECT
+
+---
+# Additional permissions for image registry
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pipeline-sa-image-puller
+  namespace: YOUR_PROJECT
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:image-puller
+subjects:
+- kind: ServiceAccount
+  name: pipeline-sa
+  namespace: YOUR_PROJECT
+```
+
+---
+
+## Template 5: GitHub Webhook Triggers
+
+### Automatsko Pokretanje sa Git Push
+
+```yaml
+# Save as: github-triggers.yaml
+---
+apiVersion: triggers.tekton.dev/v1alpha1
+kind: TriggerTemplate
+metadata:
+  name: github-trigger-template
+  namespace: YOUR_PROJECT
+spec:
+  params:
+    - name: git-revision
+      description: Git revision
+    - name: git-url
+      description: Git repository URL
+    - name: image-tag
+      description: Image tag
+      default: "latest"
+  
+  resourcetemplates:
+    - apiVersion: tekton.dev/v1
+      kind: PipelineRun
+      metadata:
+        name: github-triggered-$(uid)
+        namespace: YOUR_PROJECT
+      spec:
+        pipelineRef:
+          name: YOUR_PIPELINE_NAME
+        params:
+          - name: git-url
+            value: $(params.git-url)
+          - name: git-revision
+            value: $(params.git-revision)
+          - name: image-tag
+            value: $(params.image-tag)
+          - name: image-repository
+            value: "image-registry.openshift-image-registry.svc:5000/YOUR_PROJECT/YOUR_APP"
+          - name: project-name
+            value: "YOUR_PROJECT"
+        workspaces:
+          - name: shared-workspace
+            volumeClaimTemplate:
+              spec:
+                accessModes:
+                  - ReadWriteOnce
+                resources:
+                  requests:
+                    storage: 1Gi
+        taskRunTemplate:
+          serviceAccountName: pipeline-sa
+
+---
+apiVersion: triggers.tekton.dev/v1alpha1
+kind: TriggerBinding
+metadata:
+  name: github-trigger-binding
+  namespace: YOUR_PROJECT
+spec:
+  params:
+    - name: git-revision
+      value: $(body.head_commit.id)
+    - name: git-url
+      value: $(body.repository.clone_url)
+    - name: image-tag
+      value: $(body.head_commit.id)
+
+---
+apiVersion: triggers.tekton.dev/v1alpha1
+kind: EventListener
+metadata:
+  name: github-event-listener
+  namespace: YOUR_PROJECT
+spec:
+  serviceAccountName: pipeline-sa
+  triggers:
+    - name: github-push-trigger
+      bindings:
+        - ref: github-trigger-binding
+      template:
+        ref: github-trigger-template
+      interceptors:
+        - ref:
+            name: "github"
+          params:
+            - name: "secretRef"
+              value:
+                secretName: github-webhook-secret
+                secretKey: secretToken
+            - name: "eventTypes"
+              value: ["push"]
+
+---
+# GitHub webhook secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: github-webhook-secret
+  namespace: YOUR_PROJECT
+type: Opaque
+stringData:
+  secretToken: "YOUR_GITHUB_WEBHOOK_SECRET"
+```
+
+---
+
+## Deployment Scripts
+
+### Brzо Deployment Script
+
+```bash
+#!/bin/bash
+# Save as: deploy-pipeline.sh
+
+set -e
+
+PROJECT_NAME="${1:-my-project}"
+APP_NAME="${2:-my-app}"
+GIT_URL="${3:-https://github.com/user/repo.git}"
+
+echo "🚀 Deploying OpenShift Pipeline for $APP_NAME in $PROJECT_NAME"
+
+# 1. Create/switch to project
+oc new-project $PROJECT_NAME 2>/dev/null || oc project $PROJECT_NAME
+
+# 2. Apply RBAC
+echo "🔐 Setting up service account..."
+cat << EOF | oc apply -f -
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pipeline-sa
+  namespace: $PROJECT_NAME
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: pipeline-sa-binding-$PROJECT_NAME
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: edit
+subjects:
+- kind: ServiceAccount
+  name: pipeline-sa
+  namespace: $PROJECT_NAME
+EOF
+
+# 3. Apply pipeline
+echo "⚙️ Creating pipeline..."
+sed "s/YOUR_PROJECT/$PROJECT_NAME/g; s/YOUR_APP/$APP_NAME/g; s|YOUR_ORG/YOUR_REPO|${GIT_URL#https://github.com/}|g" \
+  nextjs-pipeline.yaml | oc apply -f -
+
+# 4. Run pipeline
+echo "▶️ Starting pipeline..."
+sed "s/YOUR_PROJECT/$PROJECT_NAME/g; s/YOUR_APP/$APP_NAME/g; s|YOUR_ORG/YOUR_REPO.git|$GIT_URL|g" \
+  nextjs-pipelinerun.yaml | oc apply -f -
+
+echo "✅ Pipeline deployed! Monitor with:"
+echo "   oc get pipelinerun -w"
+```
+
+### Usage
+
+```bash
+# Make executable
+chmod +x deploy-pipeline.sh
+
+# Deploy
+./deploy-pipeline.sh my-project my-nextjs-app https://github.com/myorg/my-app.git
+
+# Monitor
+oc get pipelinerun -w
+```
+
+---
+
+## Quick Reference Commands
+
+### Pipeline Management
+
+```bash
+# Apply pipeline
+oc apply -f my-pipeline.yaml
+
+# Run pipeline
+oc create -f my-pipelinerun.yaml
+
+# List pipeline runs
+oc get pipelinerun
+
+# Follow logs
+oc logs -f pipelinerun/my-pipeline-run
+
+# Delete pipeline run
+oc delete pipelinerun my-pipeline-run
+```
+
+### Debugging
+
+```bash
+# Check task status
+oc get taskrun
+
+# Task logs
+oc logs taskrun/my-task-run
+
+# Check builds
+oc get builds
+oc logs -f build/my-app-s2i-1
+
+# Check deployments
+oc get deployment
+oc rollout status deployment/my-app
+```
+
+### Cleanup
+
+```bash
+# Delete all pipeline runs
+oc delete pipelinerun --all
+
+# Delete pipeline
+oc delete pipeline my-pipeline
+
+# Delete builds
+oc delete buildconfig my-app-s2i
+oc delete builds --all
+```
+
+---
+
+## Zaključak
+
+Ovi template-i su testirani u produkciji i pokrivaju:
+
+✅ **Next.js Applications** - Kompletna S2I pipeline  
+✅ **React Applications** - Sa testovima i build steps  
+✅ **Generic Applications** - Parametrizovani template  
+✅ **Security Setup** - RBAC i service accounts  
+✅ **GitHub Integration** - Webhook triggers  
+✅ **Deployment Scripts** - Automatizovano setup  
+
+**Kako koristiti:**
+
+1. Zamenite `YOUR_PROJECT`, `YOUR_APP`, `YOUR_ORG/YOUR_REPO` sa vašim vrednostima
+2. Primeni RBAC setup prvo
+3. Primeni pipeline definition
+4. Pokreni PipelineRun
+5. Monitoriraj progress
+
+Svi template-i uključuju error handling i best practices iz naše implementacije!

@@ -34,7 +34,7 @@ spec:
           - name: git-revision
             value: $(params.git-revision)
           - name: image-repository
-            value: "image-registry.openshift-image-registry.svc:5000/cn-docs"
+            value: "image-registry.openshift-image-registry.svc:5000/cn-docs/cn-docs"
           - name: image-tag
             value: $(params.image-tag)
           - name: project-name
@@ -97,4 +97,3 @@ spec:
   resources:
     kubernetesResource:
       serviceType: ClusterIP
-      servicePort: 8080

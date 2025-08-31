@@ -60,7 +60,7 @@ echo -e "${GREEN}✅ Project ${PROJECT_NAME} is ready${NC}"
 
 # Deploy RBAC first
 echo -e "${YELLOW}🔐 Deploying RBAC and ServiceAccounts...${NC}"
-oc apply -f ${TEKTON_DIR}/rbac.yaml
+oc apply -f ${TEKTON_DIR}/rbac-fixed.yaml
 
 # Deploy Tekton pipeline
 echo -e "${YELLOW}🔧 Deploying Tekton pipeline...${NC}"

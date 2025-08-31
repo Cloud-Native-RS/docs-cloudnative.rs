@@ -1,12 +1,12 @@
 apiVersion: tekton.dev/v1
 kind: PipelineRun
 metadata:
-  name: cn-docs-pipeline-run-complete
+  name: cn-docs-pipeline-run-complete-test
   namespace: cn-docs
   labels:
     app: cn-docs
     pipeline: ci-cd
-    run: final
+    run: complete-test
 spec:
   pipelineRef:
     name: cn-docs-pipeline
@@ -19,7 +19,7 @@ spec:
     - name: image-repository
       value: "image-registry.openshift-image-registry.svc:5000/cn-docs/cn-docs"
     - name: image-tag
-      value: "latest"
+      value: "v1.0"
     - name: project-name
       value: "cn-docs"
   
@@ -33,10 +33,6 @@ spec:
             requests:
               storage: 1Gi
   
-  # TaskRun template with ServiceAccount
-  taskRunTemplate:
-    serviceAccountName: cn-docs-pipeline-sa
+  timeout: 30m
   
-  # Timeout for the entire pipeline
-  timeouts:
-    pipeline: 30m
+  serviceAccountName: cn-docs-pipeline-sa

@@ -3,6 +3,9 @@
   "deployment-architecture": "Deployment Architecture",
   "deployment-models": "Deployment Models", 
   "deployment-strategies": "Deployment Strategies",
+  "openshift-pipelines": "OpenShift Pipelines CI/CD",
+  "openshift-pipelines-troubleshooting": "Pipelines Troubleshooting",
+  "openshift-pipelines-templates": "Ready-to-Use Templates",
   "cluster-nodes--resources": "Cluster Resources",
   "infrastructure--network-planning": "Infrastructure & Network Planning",
   "best-practices": "Best Practices"

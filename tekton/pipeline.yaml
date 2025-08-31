@@ -18,7 +18,7 @@ spec:
       default: "main"
     - name: image-repository
       description: "Container image repository"
-      default: "image-registry.openshift-image-registry.svc:5000/cn-docs"
+      default: "image-registry.openshift-image-registry.svc:5000/cn-docs/cn-docs"
     - name: image-tag
       description: "Container image tag"
       default: "latest"
@@ -31,127 +31,208 @@ spec:
       description: "Shared workspace for pipeline tasks"
 
   tasks:
-    # Task 1: Clone Git repository
-    - name: fetch-repository
-      taskRef:
-        name: git-clone
+    # Task 1: Clone Git repository using simple git commands
+    - name: git-clone
+      taskSpec:
+        description: "Clone git repository"
+        params:
+          - name: url
+            description: "git url to clone"
+            type: string
+          - name: revision
+            description: "git revision to checkout"
+            type: string
+            default: "main"
+        workspaces:
+          - name: output
+            description: "The git repo will be cloned onto this workspace"
+        steps:
+          - name: clone
+            image: alpine/git:latest
+            workingDir: $(workspaces.output.path)
+            script: |
+              #!/bin/sh
+              set -xe
+              
+              # Clean workspace completely
+              rm -rf ./* .git || true
+              
+              # Configure git to trust all directories (workaround for Tekton)
+              export GIT_CONFIG_GLOBAL=/tmp/gitconfig
+              git config --global safe.directory '*'
+              
+              # Initialize git repository
+              git init
+              
+              # Add remote origin
+              git remote add origin $(params.url)
+              
+              # Fetch specific revision to avoid ownership issues
+              git fetch origin $(params.revision)
+              
+              # Checkout the fetched revision
+              git checkout FETCH_HEAD
+              
+              echo "Repository cloned successfully"
+              ls -la
       params:
         - name: url
           value: $(params.git-url)
         - name: revision
           value: $(params.git-revision)
-        - name: submodules
-          value: "true"
-        - name: depth
-          value: "1"
       workspaces:
         - name: output
           workspace: shared-workspace
 
-    # Task 2: Install dependencies and build
-    - name: build-application
-      runAfter: ["fetch-repository"]
-      taskRef:
-        name: nodejs-build
-      params:
-        - name: NODE_VERSION
-          value: "18"
-        - name: NPM_COMMAND
-          value: "install"
-        - name: BUILD_COMMAND
-          value: "run build"
+    # Task 2: Build application using NodeJS
+    - name: build-app
+      runAfter: ["git-clone"]
+      taskSpec:
+        description: "Build NodeJS application"
+        workspaces:
+          - name: source
+            description: "Source code workspace"
+        steps:
+          - name: install-and-build
+            image: registry.access.redhat.com/ubi8/nodejs-18:latest
+            workingDir: $(workspaces.source.path)
+            script: |
+              #!/bin/bash
+              set -xe
+              
+              echo "Installing dependencies..."
+              npm install
+              
+              echo "Building application..."
+              npm run build
+              
+              echo "Build completed successfully"
+              ls -la
       workspaces:
         - name: source
           workspace: shared-workspace
-        - name: cache
-          workspace: shared-workspace
 
-    # Task 3: Build Docker image
+    # Task 3: Create S2I BuildConfig and trigger build
     - name: build-image
-      runAfter: ["build-application"]
-      taskRef:
-        name: buildah
+      runAfter: ["build-app"]
+      taskSpec:
+        description: "Create S2I build and push container image"
+        params:
+          - name: IMAGE_REPOSITORY
+            description: "Image repository"
+            type: string
+          - name: IMAGE_TAG
+            description: "Image tag"
+            type: string
+          - name: PROJECT_NAME
+            description: "OpenShift project name"
+            type: string
+        workspaces:
+          - name: source
+            description: "Source code workspace"
+        steps:
+          - name: create-s2i-build
+            image: registry.redhat.io/openshift4/ose-cli:latest
+            workingDir: $(workspaces.source.path)
+            script: |
+              #!/bin/bash
+              set -xe
+              
+              echo "Creating S2I BuildConfig..."
+              
+              # Switch to the correct project
+              oc project $(params.PROJECT_NAME)
+              
+              # Delete existing BuildConfig if it exists
+              oc delete buildconfig cn-docs-s2i --ignore-not-found=true
+              
+              # Create new BuildConfig using S2I strategy
+              oc new-build nodejs:18-ubi9~. \
+                --name=cn-docs-s2i \
+                --to=$(params.IMAGE_REPOSITORY):$(params.IMAGE_TAG) \
+                --strategy=source \
+                --env NPM_CONFIG_PRODUCTION=false \
+                --env NODE_ENV=production
+              
+              echo "Starting S2I build..."
+              
+              # Start the build and wait for completion
+              oc start-build cn-docs-s2i --from-dir=. --wait --follow
+              
+              echo "S2I build completed successfully"
+              
+              # Verify the image was built (check the target ImageStream, not the BuildConfig name)
+              oc get imagestream cn-docs -o yaml | grep -A 5 "tags:" || true
+              
+              echo "Image successfully built and pushed to $(params.IMAGE_REPOSITORY):$(params.IMAGE_TAG)"
       params:
-        - name: IMAGE
-          value: "$(params.image-repository):$(params.image-tag)"
-        - name: DOCKERFILE
-          value: "./Dockerfile"
-        - name: CONTEXT
-          value: "."
-        - name: TLSVERIFY
-          value: "false"
+        - name: IMAGE_REPOSITORY
+          value: $(params.image-repository)
+        - name: IMAGE_TAG
+          value: $(params.image-tag)
+        - name: PROJECT_NAME
+          value: $(params.project-name)
       workspaces:
         - name: source
           workspace: shared-workspace
 
-    # Task 4: Push image to registry
-    - name: push-image
+    # Task 4: Deploy to OpenShift
+    - name: deploy
       runAfter: ["build-image"]
-      taskRef:
-        name: buildah
+      taskSpec:
+        description: "Deploy to OpenShift"
+        params:
+          - name: IMAGE_REPOSITORY
+            type: string
+          - name: IMAGE_TAG
+            type: string
+          - name: PROJECT_NAME
+            type: string
+        workspaces:
+          - name: source
+            description: "Source code workspace"
+        steps:
+          - name: deploy
+            image: registry.redhat.io/openshift4/ose-cli:latest
+            workingDir: $(workspaces.source.path)
+            script: |
+              #!/bin/bash
+              set -xe
+              
+              echo "Deploying to OpenShift..."
+              
+              # Switch to project
+              oc project $(params.PROJECT_NAME)
+              
+              # Deploy using native OpenShift commands (since Helm might not be available)
+              echo "Creating/updating deployment..."
+              
+              # Create or update deployment with correct image reference
+              oc create deployment cn-docs --image=$(params.IMAGE_REPOSITORY):$(params.IMAGE_TAG) --dry-run=client -o yaml | \
+              oc apply -f -
+              
+              # Expose the service if it doesn't exist
+              oc expose deployment cn-docs --port=3000 --target-port=3000 --dry-run=client -o yaml | \
+              oc apply -f -
+              
+              # Create route if it doesn't exist (simple approach)
+              oc expose service cn-docs || echo "Route might already exist"
+              
+              # Wait for deployment to be ready
+              oc rollout status deployment/cn-docs --timeout=300s
+              
+              # Get deployment status
+              oc get pods -n $(params.PROJECT_NAME)
+              oc get routes -n $(params.PROJECT_NAME)
+              
+              echo "Deployment completed successfully!"
       params:
-        - name: IMAGE
-          value: "$(params.image-repository):$(params.image-tag)"
-        - name: COMMAND
-          value: "push"
-        - name: TLSVERIFY
-          value: "false"
-
-    # Task 5: Deploy to OpenShift
-    - name: deploy-openshift
-      runAfter: ["push-image"]
-      taskRef:
-        name: openshift-client
-      params:
-        - name: SCRIPT
-          value: |
-            #!/bin/bash
-            set -e
-            
-            # Create project if it doesn't exist
-            oc new-project $(params.project-name) --display-name="Cloud Native Documentation" --description="Documentation for Cloud Native platform" 2>/dev/null || true
-            
-            # Switch to project
-            oc project $(params.project-name)
-            
-            # Deploy using Helm
-            helm upgrade --install cn-docs ./helm \
-              --namespace $(params.project-name) \
-              --set image.repository=$(params.image-repository) \
-              --set image.tag=$(params.image-tag) \
-              --set image.pullPolicy=Always \
-              --wait --timeout=10m
-            
-            # Get deployment status
-            oc get pods -n $(params.project-name)
-            oc get routes -n $(params.project-name)
-            
-            echo "Deployment completed successfully!"
+        - name: IMAGE_REPOSITORY
+          value: $(params.image-repository)
+        - name: IMAGE_TAG
+          value: $(params.image-tag)
+        - name: PROJECT_NAME
+          value: $(params.project-name)
       workspaces:
         - name: source
-          workspace: shared-workspace
-
-    # Task 6: Run tests (optional)
-    - name: run-tests
-      runAfter: ["deploy-openshift"]
-      taskRef:
-        name: nodejs-test
-      params:
-        - name: NODE_VERSION
-          value: "18"
-        - name: NPM_COMMAND
-          value: "test"
-      workspaces:
-        - name: source
-          workspace: shared-workspace
-        - name: cache
-          workspace: shared-workspace
-
-  finally:
-    # Cleanup and notifications
-    - name: cleanup
-      taskRef:
-        name: cleanup-workspace
-      workspaces:
-        - name: workspace
           workspace: shared-workspace

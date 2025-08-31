@@ -1,0 +1,461 @@
+# OpenShift Pipelines - Troubleshooting Guide
+
+## Pregled
+
+Ovaj vodič pokriva najčešće probleme koje možete sresti prilikom implementacije OpenShift Pipelines i njihova detaljana rešenja bazirana na praktičnom iskustvu.
+
+---
+
+## Kritični Problemi i Rešenja
+
+### 1. Image Registry Authentication Error
+
+#### Problem
+```
+Error: pushing image "image-registry.openshift-image-registry.svc:5000/cn-docs:latest" 
+to "docker://image-registry.openshift-image-registry.svc:5000/cn-docs:latest": 
+trying to reuse blob sha256:08000c18d16dadf9553d747a58cf44023423a9ab010aab96cf263d2216b8b350 
+at destination: unable to retrieve auth token: invalid username/password: 
+unauthorized: repository name "cn-docs" invalid: it must be of the format <project>/<name>
+```
+
+#### Uzrok
+OpenShift internal registry zahteva specifičan format za image names: `<project>/<name>`, ne samo `<name>`.
+
+#### Rešenje
+```yaml
+# ❌ POGREŠNO
+params:
+  - name: image-repository
+    value: "image-registry.openshift-image-registry.svc:5000/cn-docs"
+
+# ✅ ISPRAVNO
+params:
+  - name: image-repository
+    value: "image-registry.openshift-image-registry.svc:5000/cn-docs/cn-docs"
+```
+
+#### Kako Proveriti
+```bash
+# Proverite format image repository
+oc get imagestream -n your-project
+
+# Trebalo bi da vidite format: project/name
+```
+
+---
+
+### 2. Privileged Container Security Error
+
+#### Problem
+```
+pods "pipeline-build-image-pod" is forbidden: unable to validate against any 
+security context constraint: provider "anyuid": Forbidden: not usable by user 
+or serviceaccount, provider pipelines-scc: .containers[0].privileged: Invalid 
+value: true: Privileged containers are not allowed
+```
+
+#### Uzrok
+Buildah zahteva privileged containers koji su često zabranjeni security policies.
+
+#### Rešenje - Zamena sa S2I Builds
+```yaml
+# ❌ POGREŠNO - Buildah sa privileged
+steps:
+  - name: build-and-push
+    image: registry.redhat.io/rhel8/buildah:latest
+    securityContext:
+      privileged: true  # Zabranjeno!
+    script: |
+      buildah build --tls-verify=false -t $(params.IMAGE) .
+      buildah push --tls-verify=false $(params.IMAGE)
+
+# ✅ ISPRAVNO - S2I build
+steps:
+  - name: s2i-build
+    image: registry.redhat.io/openshift4/ose-cli:latest
+    script: |
+      # Create S2I BuildConfig
+      oc new-build nodejs:18-ubi9~. \
+        --name=app-s2i \
+        --to=$(params.IMAGE_REPOSITORY):$(params.IMAGE_TAG) \
+        --strategy=source
+      
+      # Start build and wait
+      oc start-build app-s2i --from-dir=. --wait --follow
+```
+
+#### Prednosti S2I
+- ✅ Nema potrebe za privileged containers
+- ✅ OpenShift-native pristup
+- ✅ Automatsko layer caching
+- ✅ Kompatibilno sa security policies
+
+---
+
+### 3. Helm Command Not Found
+
+#### Problem
+```
+/tekton/scripts/script-0-kqz2v: line 10: helm: command not found
+```
+
+#### Uzrok
+OpenShift CLI image ne sadrži Helm po default-u.
+
+#### Rešenje - Native OpenShift Commands
+```yaml
+# ❌ POGREŠNO - Zavisnost od Helm-a
+script: |
+  helm upgrade --install my-app ./helm \
+    --namespace $(params.PROJECT_NAME) \
+    --set image.repository=$(params.IMAGE_REPOSITORY) \
+    --set image.tag=$(params.IMAGE_TAG)
+
+# ✅ ISPRAVNO - Native OpenShift commands
+script: |
+  # Create or update deployment
+  oc create deployment my-app \
+    --image=$(params.IMAGE_REPOSITORY):$(params.IMAGE_TAG) \
+    --dry-run=client -o yaml | oc apply -f -
+  
+  # Expose service
+  oc expose deployment my-app \
+    --port=3000 --target-port=3000 \
+    --dry-run=client -o yaml | oc apply -f -
+  
+  # Create route
+  oc expose service my-app || echo "Route might already exist"
+  
+  # Wait for rollout
+  oc rollout status deployment/my-app --timeout=300s
+```
+
+---
+
+### 4. Route Creation API Version Error
+
+#### Problem
+```
+error: resource mapping not found for name: "my-app" namespace: "" from "STDIN": 
+no matches for kind "Route" in version "v1"
+ensure CRDs are installed first
+```
+
+#### Uzrok
+Route resource koristi OpenShift-specific API version, ne standardni Kubernetes v1.
+
+#### Rešenje
+```bash
+# ❌ POGREŠNO - Pokušaj sa generic API
+oc expose service my-app --dry-run=client -o yaml | oc apply -f -
+
+# ✅ ISPRAVNO - Jednostavan pristup
+oc expose service my-app || echo "Route might already exist"
+
+# Ili eksplicitno sa proper API
+oc create route edge my-app --service=my-app \
+  --dry-run=client -o yaml | oc apply -f -
+```
+
+---
+
+### 5. ImageStream Verification Error
+
+#### Problem
+```
+Error from server (NotFound): imagestreams.image.openshift.io "my-app-s2i" not found
+```
+
+#### Uzrok
+Pipeline pokušava da verifikuje pogrešan ImageStream. S2I build kreira ImageStream sa imenom iz `--to` parametra, ne BuildConfig imena.
+
+#### Rešenje
+```yaml
+# ❌ POGREŠNO - Traži ImageStream po BuildConfig imenu
+script: |
+  oc new-build nodejs:18-ubi9~. \
+    --name=my-app-s2i \
+    --to=image-registry.openshift-image-registry.svc:5000/project/my-app:tag
+  
+  # Pokušava da nađe "my-app-s2i" ImageStream
+  oc get imagestream my-app-s2i -o yaml | grep -A 5 "tags:"
+
+# ✅ ISPRAVNO - Verifikuje stvarni ImageStream
+script: |
+  oc new-build nodejs:18-ubi9~. \
+    --name=my-app-s2i \
+    --to=image-registry.openshift-image-registry.svc:5000/project/my-app:tag
+  
+  # Verifikuje stvarni ImageStream "my-app"
+  oc get imagestream my-app -o yaml | grep -A 5 "tags:" || true
+```
+
+---
+
+### 6. Deployment Image Pull Error
+
+#### Problem
+```
+NAME                     READY   STATUS             RESTARTS   AGE
+my-app-fc459d967-2l9bs   0/1     ImagePullBackOff   0          2m
+```
+
+#### Uzrok
+Deployment koristi skraćenu image referencu (`my-app:latest`) umesto pune registry path.
+
+#### Rešenje
+```bash
+# ❌ POGREŠNO - Skraćena referenca
+oc create deployment my-app --image=my-app:latest
+
+# ✅ ISPRAVNO - Puna registry path
+oc create deployment my-app \
+  --image=image-registry.openshift-image-registry.svc:5000/project/my-app:latest
+
+# Ili koristiti ImageStream reference
+oc set image deployment/my-app my-app=my-app:latest
+```
+
+#### Debug ImagePull Problem
+```bash
+# Proverite image u registry
+oc get imagestream my-app
+
+# Proverite pod events
+oc describe pod my-app-xxx
+
+# Proverite deployment image reference
+oc get deployment my-app -o yaml | grep image:
+```
+
+---
+
+### 7. Pipeline Timeout Issues
+
+#### Problem
+```
+error: timed out waiting for the condition
+Waiting for deployment "my-app" rollout to finish: 1 old replicas are pending termination...
+```
+
+#### Uzrok
+Stari pod-ovi ne mogu da se terminiraju zbog image pull grešaka ili resource constraints.
+
+#### Rešenje
+```bash
+# 1. Proverite status deployment-a
+oc get deployment my-app -o wide
+
+# 2. Proverite pod status
+oc get pods -l app=my-app
+
+# 3. Obrišite problematične pod-ove
+oc delete pod <problematic-pod-name>
+
+# 4. Restart deployment sa ispravnom image referencom
+oc rollout restart deployment/my-app
+
+# 5. Dodajte timeout handling u pipeline
+oc rollout status deployment/my-app --timeout=300s
+```
+
+#### Pipeline Script sa Error Handling
+```bash
+#!/bin/bash
+set -xe
+
+# Deploy with proper error handling
+oc create deployment my-app \
+  --image=$(params.IMAGE_REPOSITORY):$(params.IMAGE_TAG) \
+  --dry-run=client -o yaml | oc apply -f -
+
+# Wait for rollout with timeout
+if ! oc rollout status deployment/my-app --timeout=300s; then
+  echo "Deployment rollout failed, checking status..."
+  oc get pods -l app=my-app
+  oc describe deployment my-app
+  exit 1
+fi
+
+echo "Deployment successful!"
+```
+
+---
+
+## Debug Workflow
+
+### 1. Pipeline Level Debug
+
+```bash
+# Proverite pipeline status
+oc get pipelinerun
+
+# Detaljni opis pipeline run-a
+oc describe pipelinerun my-pipeline-run
+
+# Pipeline logs
+oc logs pipelinerun/my-pipeline-run
+```
+
+### 2. Task Level Debug
+
+```bash
+# Proverite task status
+oc get taskrun -l tekton.dev/pipelineRun=my-pipeline-run
+
+# Task logs
+oc logs taskrun/my-pipeline-run-build-task
+
+# Pod level debug
+oc get pods -l tekton.dev/taskRun=my-pipeline-run-build-task
+oc describe pod my-pipeline-run-build-task-pod
+```
+
+### 3. S2I Build Debug
+
+```bash
+# Proverite S2I build status
+oc get builds
+
+# S2I build logs
+oc logs -f build/my-app-s2i-1
+
+# BuildConfig status
+oc describe buildconfig my-app-s2i
+
+# Image stream status
+oc get imagestream my-app -o yaml
+```
+
+### 4. Deployment Debug
+
+```bash
+# Deployment status
+oc get deployment my-app -o wide
+
+# Pod status i events
+oc get pods -l app=my-app
+oc describe pod my-app-xxx
+
+# Service i route status
+oc get svc my-app
+oc get route my-app
+```
+
+---
+
+## Preventivne Mere
+
+### 1. Pipeline Template sa Error Handling
+
+```yaml
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: robust-pipeline
+spec:
+  # Dodajte timeouts
+  timeouts:
+    pipeline: 30m
+  
+  tasks:
+    - name: build-with-error-handling
+      taskSpec:
+        steps:
+          - name: build
+            script: |
+              #!/bin/bash
+              set -xe
+              
+              # Function za error handling
+              handle_error() {
+                echo "Error occurred in: $1"
+                oc get events --field-selector type=Warning
+                exit 1
+              }
+              
+              # Trap errors
+              trap 'handle_error "S2I Build"' ERR
+              
+              # Your build logic here...
+```
+
+### 2. Resource Limits
+
+```yaml
+# Dodajte resource limits u TaskRun template
+taskRunTemplate:
+  podTemplate:
+    securityContext:
+      runAsNonRoot: true
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+```
+
+### 3. Retry Logic
+
+```yaml
+# Pipeline sa retry logic
+spec:
+  tasks:
+    - name: build-with-retry
+      retries: 2  # Retry failed tasks
+      taskSpec:
+        # task definition
+```
+
+---
+
+## Monitoring i Alerting
+
+### 1. Pipeline Metrics
+
+```bash
+# Pipeline execution time
+oc get pipelinerun -o custom-columns=NAME:.metadata.name,STATUS:.status.conditions[0].status,START:.status.startTime,COMPLETION:.status.completionTime
+
+# Failed pipeline runs
+oc get pipelinerun --field-selector=status.conditions[0].status=False
+```
+
+### 2. Resource Usage
+
+```bash
+# Pod resource usage
+oc top pods -l tekton.dev/pipeline=my-pipeline
+
+# Workspace storage usage
+oc get pvc -l tekton.dev/pipeline=my-pipeline
+```
+
+### 3. Build Metrics
+
+```bash
+# S2I build duration
+oc get builds -o custom-columns=NAME:.metadata.name,STATUS:.status.phase,DURATION:.status.duration
+
+# Image sizes
+oc get imagestream my-app -o jsonpath='{.status.tags[*].tag}' | xargs -I {} oc get imagestreamtag my-app:{} -o jsonpath='{.metadata.name}: {.image.dockerImageMetadata.Size}{"\n"}'
+```
+
+---
+
+## Zaključak
+
+Ovaj troubleshooting guide pokriva sve kritične probleme koje možete sresti:
+
+✅ **Image Registry Format** - Uvek koristiti `<project>/<name>` format  
+✅ **Security Constraints** - S2I builds umesto privileged buildah  
+✅ **Dependency Issues** - Native OpenShift commands umesto external tools  
+✅ **API Compatibility** - Proper OpenShift API versions  
+✅ **Image References** - Pune registry paths za deployment  
+✅ **Error Handling** - Robust error detection i recovery  
+✅ **Monitoring** - Proactive problem detection  
+
+Koristite ovaj guide kao reference za brzo rešavanje problema u production okruženjima!

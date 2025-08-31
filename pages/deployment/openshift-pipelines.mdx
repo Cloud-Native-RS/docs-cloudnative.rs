@@ -1,0 +1,645 @@
+# OpenShift Pipelines - Kompletno Uputstvo
+
+## Pregled
+
+OpenShift Pipelines je cloud-native CI/CD rešenje zasnovano na [Tekton](https://tekton.dev/) projektu. Ova dokumentacija pokriva sve aspekte implementacije, od osnovne konfiguracije do naprednih tehnika.
+
+## Sadržaj
+
+- [Osnovne Komponente](#osnovne-komponente)
+- [Sigurnosni Aspekti](#sigurnosni-aspekti)
+- [S2I Build Strategija](#s2i-build-strategija)
+- [Rešavanje Čestih Problema](#rešavanje-čestih-problema)
+- [Best Practices](#best-practices)
+- [Primer Kompletne Implementacije](#primer-kompletne-implementacije)
+
+---
+
+## Osnovne Komponente
+
+### Pipeline
+
+Pipeline definiše CI/CD workflow sa sekvencijalnim ili paralelnim taskovima:
+
+```yaml
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: app-pipeline
+  namespace: my-project
+spec:
+  params:
+    - name: git-url
+      description: "Git repository URL"
+      default: "https://github.com/user/repo.git"
+    - name: git-revision
+      description: "Git revision to build"
+      default: "main"
+    - name: image-repository
+      description: "Container image repository"
+      default: "image-registry.openshift-image-registry.svc:5000/my-project/my-app"
+    - name: image-tag
+      description: "Container image tag"
+      default: "latest"
+```
+
+### PipelineRun
+
+PipelineRun pokreće konkretnu instancu Pipeline-a:
+
+```yaml
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: app-pipeline-run-001
+  namespace: my-project
+spec:
+  pipelineRef:
+    name: app-pipeline
+  params:
+    - name: git-url
+      value: "https://github.com/user/repo.git"
+    - name: image-tag
+      value: "v1.0.0"
+  workspaces:
+    - name: shared-workspace
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 1Gi
+```
+
+---
+
+## Sigurnosni Aspekti
+
+### Privileged Containers Problem
+
+❌ **Problem**: Buildah zahteva privileged containers koji su često zabranjeni:
+
+```yaml
+# IZBEGAVATI - Neće raditi u sigurnim okruženjima
+steps:
+  - name: build-image
+    image: registry.redhat.io/rhel8/buildah:latest
+    securityContext:
+      privileged: true  # ❌ Često zabranjeno
+```
+
+✅ **Rešenje**: Koristiti S2I (Source-to-Image) builds:
+
+```yaml
+# PREPORUČENO - Sigurno i kompatibilno
+steps:
+  - name: s2i-build
+    image: registry.redhat.io/openshift4/ose-cli:latest
+    script: |
+      oc new-build nodejs:18-ubi9~. \
+        --name=my-app-s2i \
+        --to=$(params.image-repository):$(params.image-tag)
+      oc start-build my-app-s2i --from-dir=. --wait --follow
+```
+
+### Service Account Konfiguracija
+
+```yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pipeline-sa
+  namespace: my-project
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: pipeline-sa-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: edit
+subjects:
+- kind: ServiceAccount
+  name: pipeline-sa
+  namespace: my-project
+```
+
+---
+
+## S2I Build Strategija
+
+### Zašto S2I?
+
+1. **Sigurnost**: Nema potrebe za privileged containers
+2. **Standardizacija**: OpenShift-native pristup
+3. **Optimizacija**: Automatsko layer caching
+4. **Kompatibilnost**: Radi sa security policies
+
+### S2I Task Implementacija
+
+```yaml
+- name: s2i-build
+  taskSpec:
+    description: "S2I build and push"
+    params:
+      - name: IMAGE_REPOSITORY
+        type: string
+      - name: IMAGE_TAG
+        type: string
+      - name: PROJECT_NAME
+        type: string
+    workspaces:
+      - name: source
+    steps:
+      - name: create-s2i-build
+        image: registry.redhat.io/openshift4/ose-cli:latest
+        workingDir: $(workspaces.source.path)
+        script: |
+          #!/bin/bash
+          set -xe
+          
+          # Switch to correct project
+          oc project $(params.PROJECT_NAME)
+          
+          # Delete existing BuildConfig if exists
+          oc delete buildconfig app-s2i --ignore-not-found=true
+          
+          # Create S2I BuildConfig
+          oc new-build nodejs:18-ubi9~. \
+            --name=app-s2i \
+            --to=$(params.IMAGE_REPOSITORY):$(params.IMAGE_TAG) \
+            --strategy=source \
+            --env NPM_CONFIG_PRODUCTION=false \
+            --env NODE_ENV=production
+          
+          # Start build and wait
+          oc start-build app-s2i --from-dir=. --wait --follow
+          
+          # Verify success
+          oc get imagestream $(echo $(params.IMAGE_REPOSITORY) | cut -d'/' -f3) \
+            -o yaml | grep -A 5 "tags:" || true
+```
+
+---
+
+## Rešavanje Čestih Problema
+
+### 1. Image Registry Format
+
+❌ **Greška**:
+```
+repository name "my-app" invalid: it must be of the format <project>/<name>
+```
+
+✅ **Rešenje**:
+```yaml
+# Koristiti pun format: registry/project/name
+image-repository: "image-registry.openshift-image-registry.svc:5000/my-project/my-app"
+```
+
+### 2. Helm Dependency
+
+❌ **Greška**:
+```
+helm: command not found
+```
+
+✅ **Rešenje** - Koristiti native OpenShift commands:
+```bash
+# Create deployment
+oc create deployment my-app --image=$(params.IMAGE_REPOSITORY):$(params.IMAGE_TAG) \
+  --dry-run=client -o yaml | oc apply -f -
+
+# Expose service
+oc expose deployment my-app --port=3000 --target-port=3000 \
+  --dry-run=client -o yaml | oc apply -f -
+
+# Create route
+oc expose service my-app || echo "Route might already exist"
+```
+
+### 3. Route API Version
+
+❌ **Greška**:
+```
+no matches for kind "Route" in version "v1"
+```
+
+✅ **Rešenje**:
+```bash
+# Jednostavan pristup
+oc expose service my-app
+
+# Ili sa proper API version
+oc create route edge my-app --service=my-app \
+  --dry-run=client -o yaml | oc apply -f -
+```
+
+### 4. ImageStream Reference
+
+❌ **Problem**: Deployment ne može da povuče image
+
+✅ **Rešenje**:
+```bash
+# Koristiti punu image referencu
+oc create deployment my-app \
+  --image=image-registry.openshift-image-registry.svc:5000/my-project/my-app:latest
+```
+
+---
+
+## Best Practices
+
+### 1. Workspace Management
+
+```yaml
+workspaces:
+  - name: shared-workspace
+    volumeClaimTemplate:
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi  # Dovoljno za većinu projekata
+```
+
+### 2. Parametrizacija
+
+```yaml
+params:
+  - name: git-url
+    description: "Git repository URL"
+    default: "https://github.com/default/repo.git"
+  - name: git-revision
+    description: "Git revision to build"
+    default: "main"
+  - name: image-tag
+    description: "Container image tag"
+    default: "latest"
+```
+
+### 3. Error Handling
+
+```bash
+# Dodati error handling u scripts
+set -xe  # Exit on error, show commands
+
+# Graceful handling
+oc delete buildconfig my-app --ignore-not-found=true
+oc expose service my-app || echo "Route might already exist"
+```
+
+### 4. Timeouts
+
+```yaml
+spec:
+  timeouts:
+    pipeline: 30m  # Ukupan timeout za pipeline
+  taskRunTemplate:
+    timeout: 10m   # Timeout po task-u
+```
+
+---
+
+## Primer Kompletne Implementacije
+
+### Kompletna Pipeline sa Svim Fix-ovima
+
+```yaml
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: nextjs-app-pipeline
+  namespace: my-project
+spec:
+  description: "Complete CI/CD Pipeline for Next.js applications"
+  
+  params:
+    - name: git-url
+      description: "Git repository URL"
+      default: "https://github.com/user/nextjs-app.git"
+    - name: git-revision
+      description: "Git revision to build"
+      default: "main"
+    - name: image-repository
+      description: "Container image repository"
+      default: "image-registry.openshift-image-registry.svc:5000/my-project/nextjs-app"
+    - name: image-tag
+      description: "Container image tag"
+      default: "latest"
+    - name: project-name
+      description: "OpenShift project name"
+      default: "my-project"
+
+  workspaces:
+    - name: shared-workspace
+      description: "Shared workspace for pipeline tasks"
+
+  tasks:
+    # Task 1: Git Clone
+    - name: git-clone
+      taskSpec:
+        description: "Clone git repository"
+        params:
+          - name: url
+            type: string
+          - name: revision
+            type: string
+            default: "main"
+        workspaces:
+          - name: output
+        steps:
+          - name: clone
+            image: alpine/git:latest
+            workingDir: $(workspaces.output.path)
+            script: |
+              #!/bin/sh
+              set -xe
+              rm -rf ./* .git || true
+              git config --global safe.directory '*'
+              git init
+              git remote add origin $(params.url)
+              git fetch origin $(params.revision)
+              git checkout FETCH_HEAD
+              echo "Repository cloned successfully"
+      params:
+        - name: url
+          value: $(params.git-url)
+        - name: revision
+          value: $(params.git-revision)
+      workspaces:
+        - name: output
+          workspace: shared-workspace
+
+    # Task 2: Build Application
+    - name: build-app
+      runAfter: ["git-clone"]
+      taskSpec:
+        description: "Build Next.js application"
+        workspaces:
+          - name: source
+        steps:
+          - name: install-and-build
+            image: registry.access.redhat.com/ubi8/nodejs-18:latest
+            workingDir: $(workspaces.source.path)
+            script: |
+              #!/bin/bash
+              set -xe
+              echo "Installing dependencies..."
+              npm install
+              echo "Building application..."
+              npm run build
+              echo "Build completed successfully"
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+
+    # Task 3: S2I Build and Push
+    - name: s2i-build
+      runAfter: ["build-app"]
+      taskSpec:
+        description: "S2I build and push container image"
+        params:
+          - name: IMAGE_REPOSITORY
+            type: string
+          - name: IMAGE_TAG
+            type: string
+          - name: PROJECT_NAME
+            type: string
+        workspaces:
+          - name: source
+        steps:
+          - name: create-s2i-build
+            image: registry.redhat.io/openshift4/ose-cli:latest
+            workingDir: $(workspaces.source.path)
+            script: |
+              #!/bin/bash
+              set -xe
+              
+              echo "Creating S2I BuildConfig..."
+              oc project $(params.PROJECT_NAME)
+              
+              # Cleanup existing BuildConfig
+              oc delete buildconfig nextjs-app-s2i --ignore-not-found=true
+              
+              # Create new S2I BuildConfig
+              oc new-build nodejs:18-ubi9~. \
+                --name=nextjs-app-s2i \
+                --to=$(params.IMAGE_REPOSITORY):$(params.IMAGE_TAG) \
+                --strategy=source \
+                --env NPM_CONFIG_PRODUCTION=false \
+                --env NODE_ENV=production
+              
+              echo "Starting S2I build..."
+              oc start-build nextjs-app-s2i --from-dir=. --wait --follow
+              
+              echo "S2I build completed successfully"
+              # Verify image was built
+              oc get imagestream $(echo $(params.IMAGE_REPOSITORY) | cut -d'/' -f3) \
+                -o yaml | grep -A 5 "tags:" || true
+              
+              echo "Image successfully built and pushed to $(params.IMAGE_REPOSITORY):$(params.IMAGE_TAG)"
+      params:
+        - name: IMAGE_REPOSITORY
+          value: $(params.image-repository)
+        - name: IMAGE_TAG
+          value: $(params.image-tag)
+        - name: PROJECT_NAME
+          value: $(params.project-name)
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+
+    # Task 4: Deploy to OpenShift
+    - name: deploy
+      runAfter: ["s2i-build"]
+      taskSpec:
+        description: "Deploy to OpenShift"
+        params:
+          - name: IMAGE_REPOSITORY
+            type: string
+          - name: IMAGE_TAG
+            type: string
+          - name: PROJECT_NAME
+            type: string
+        workspaces:
+          - name: source
+        steps:
+          - name: deploy
+            image: registry.redhat.io/openshift4/ose-cli:latest
+            workingDir: $(workspaces.source.path)
+            script: |
+              #!/bin/bash
+              set -xe
+              
+              echo "Deploying to OpenShift..."
+              oc project $(params.PROJECT_NAME)
+              
+              # Create or update deployment with correct image reference
+              oc create deployment nextjs-app \
+                --image=$(params.IMAGE_REPOSITORY):$(params.IMAGE_TAG) \
+                --dry-run=client -o yaml | oc apply -f -
+              
+              # Expose service if it doesn't exist
+              oc expose deployment nextjs-app \
+                --port=3000 --target-port=3000 \
+                --dry-run=client -o yaml | oc apply -f -
+              
+              # Create route if it doesn't exist
+              oc expose service nextjs-app || echo "Route might already exist"
+              
+              # Wait for deployment to be ready
+              oc rollout status deployment/nextjs-app --timeout=300s
+              
+              # Show deployment status
+              echo "=== Deployment Status ==="
+              oc get pods -l app=nextjs-app
+              oc get routes nextjs-app
+              
+              echo "Deployment completed successfully!"
+      params:
+        - name: IMAGE_REPOSITORY
+          value: $(params.image-repository)
+        - name: IMAGE_TAG
+          value: $(params.image-tag)
+        - name: PROJECT_NAME
+          value: $(params.project-name)
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+```
+
+### Pokretanje Pipeline-a
+
+```yaml
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: nextjs-app-pipeline-run
+  namespace: my-project
+spec:
+  pipelineRef:
+    name: nextjs-app-pipeline
+  
+  params:
+    - name: git-url
+      value: "https://github.com/my-org/my-nextjs-app.git"
+    - name: git-revision
+      value: "main"
+    - name: image-repository
+      value: "image-registry.openshift-image-registry.svc:5000/my-project/nextjs-app"
+    - name: image-tag
+      value: "v1.0.0"
+    - name: project-name
+      value: "my-project"
+  
+  workspaces:
+    - name: shared-workspace
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 1Gi
+  
+  taskRunTemplate:
+    serviceAccountName: pipeline-sa
+  
+  timeouts:
+    pipeline: 30m
+```
+
+---
+
+## Monitoring i Debugging
+
+### Praćenje Pipeline Statusa
+
+```bash
+# Check pipeline status
+oc get pipelinerun
+
+# Check individual task status
+oc get taskrun -l tekton.dev/pipelineRun=my-pipeline-run
+
+# Follow logs
+oc logs -f pipelinerun/my-pipeline-run
+
+# Check specific task logs
+oc logs pod/my-pipeline-run-build-pod
+```
+
+### Debugging Failed Builds
+
+```bash
+# Check S2I build logs
+oc logs -f build/my-app-s2i-1
+
+# Check build config
+oc describe buildconfig my-app-s2i
+
+# Check image stream
+oc get imagestream my-app -o yaml
+```
+
+---
+
+## Automatizacija sa Triggers
+
+### GitHub Webhook Integration
+
+```yaml
+apiVersion: triggers.tekton.dev/v1alpha1
+kind: TriggerTemplate
+metadata:
+  name: nextjs-app-trigger-template
+  namespace: my-project
+spec:
+  params:
+    - name: git-revision
+    - name: git-url
+    - name: image-tag
+  resourcetemplates:
+    - apiVersion: tekton.dev/v1
+      kind: PipelineRun
+      metadata:
+        name: nextjs-app-pipeline-run-$(uid)
+        namespace: my-project
+      spec:
+        pipelineRef:
+          name: nextjs-app-pipeline
+        params:
+          - name: git-url
+            value: $(params.git-url)
+          - name: git-revision
+            value: $(params.git-revision)
+          - name: image-tag
+            value: $(params.image-tag)
+        workspaces:
+          - name: shared-workspace
+            volumeClaimTemplate:
+              spec:
+                accessModes:
+                  - ReadWriteOnce
+                resources:
+                  requests:
+                    storage: 1Gi
+```
+
+---
+
+## Zaključak
+
+Ova dokumentacija pokriva sve kritične aspekte implementacije OpenShift Pipelines, uključujući:
+
+- ✅ Sigurnosne aspekte i S2I builds
+- ✅ Pravilnu konfiguraciju image registry-ja
+- ✅ Error handling i best practices
+- ✅ Kompletne primere za produkciju
+- ✅ Debugging i monitoring tehnike
+
+Koristite ovu dokumentaciju kao reference za sve buduće projekte sa OpenShift Pipelines!
