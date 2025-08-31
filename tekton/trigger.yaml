@@ -30,13 +30,13 @@ spec:
         
         params:
           - name: git-url
-            value: $(params.git-url)
+            value: $(tt.params.git-url)
           - name: git-revision
-            value: $(params.git-revision)
+            value: $(tt.params.git-revision)
           - name: image-repository
             value: "image-registry.openshift-image-registry.svc:5000/cn-docs/cn-docs"
           - name: image-tag
-            value: $(params.image-tag)
+            value: $(tt.params.image-tag)
           - name: project-name
             value: "cn-docs"
         
