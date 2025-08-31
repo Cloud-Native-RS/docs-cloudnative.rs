@@ -1,0 +1,100 @@
+---
+apiVersion: triggers.tekton.dev/v1alpha1
+kind: TriggerTemplate
+metadata:
+  name: cn-docs-trigger-template
+  namespace: cn-docs
+spec:
+  params:
+    - name: git-revision
+      description: "Git revision to build"
+    - name: git-url
+      description: "Git repository URL"
+    - name: image-tag
+      description: "Container image tag"
+  
+  resourcetemplates:
+    - apiVersion: tekton.dev/v1
+      kind: PipelineRun
+      metadata:
+        name: cn-docs-pipeline-run-$(uid)
+        namespace: cn-docs
+        labels:
+          app: cn-docs
+          pipeline: ci-cd
+          run: $(uid)
+          triggered: "true"
+      spec:
+        pipelineRef:
+          name: cn-docs-pipeline
+        
+        params:
+          - name: git-url
+            value: $(params.git-url)
+          - name: git-revision
+            value: $(params.git-revision)
+          - name: image-repository
+            value: "image-registry.openshift-image-registry.svc:5000/cn-docs"
+          - name: image-tag
+            value: $(params.image-tag)
+          - name: project-name
+            value: "cn-docs"
+        
+        workspaces:
+          - name: shared-workspace
+            volumeClaimTemplate:
+              spec:
+                accessModes:
+                  - ReadWriteOnce
+                resources:
+                  requests:
+                    storage: 1Gi
+        
+        timeout: 30m
+        serviceAccountName: cn-docs-pipeline-sa
+
+---
+apiVersion: triggers.tekton.dev/v1alpha1
+kind: TriggerBinding
+metadata:
+  name: cn-docs-trigger-binding
+  namespace: cn-docs
+spec:
+  params:
+    - name: git-revision
+      value: $(body.ref)
+    - name: git-url
+      value: $(body.repository.clone_url)
+    - name: image-tag
+      value: $(body.after)
+
+---
+apiVersion: triggers.tekton.dev/v1alpha1
+kind: EventListener
+metadata:
+  name: cn-docs-event-listener
+  namespace: cn-docs
+spec:
+  serviceAccountName: cn-docs-trigger-sa
+  
+  triggers:
+    - name: cn-docs-git-trigger
+      bindings:
+        - ref: cn-docs-trigger-binding
+      template:
+        ref: cn-docs-trigger-template
+      interceptors:
+        - ref:
+            name: "github"
+          params:
+            - name: "secretRef"
+              value:
+                secretName: github-webhook-secret
+                secretKey: secretToken
+            - name: "eventTypes"
+              value: ["push"]
+  
+  resources:
+    kubernetesResource:
+      serviceType: ClusterIP
+      servicePort: 8080

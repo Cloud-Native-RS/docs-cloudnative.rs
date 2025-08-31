@@ -1,0 +1,157 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: cn-docs-pipeline
+  namespace: cn-docs
+  labels:
+    app: cn-docs
+    pipeline: ci-cd
+spec:
+  description: "CI/CD Pipeline for Cloud Native Documentation"
+  
+  params:
+    - name: git-url
+      description: "Git repository URL"
+      default: "https://github.com/Cloud-Native-RS/docs-cloudnative.rs.git"
+    - name: git-revision
+      description: "Git revision to build"
+      default: "main"
+    - name: image-repository
+      description: "Container image repository"
+      default: "image-registry.openshift-image-registry.svc:5000/cn-docs"
+    - name: image-tag
+      description: "Container image tag"
+      default: "latest"
+    - name: project-name
+      description: "OpenShift project name"
+      default: "cn-docs"
+
+  workspaces:
+    - name: shared-workspace
+      description: "Shared workspace for pipeline tasks"
+
+  tasks:
+    # Task 1: Clone Git repository
+    - name: fetch-repository
+      taskRef:
+        name: git-clone
+      params:
+        - name: url
+          value: $(params.git-url)
+        - name: revision
+          value: $(params.git-revision)
+        - name: submodules
+          value: "true"
+        - name: depth
+          value: "1"
+      workspaces:
+        - name: output
+          workspace: shared-workspace
+
+    # Task 2: Install dependencies and build
+    - name: build-application
+      runAfter: ["fetch-repository"]
+      taskRef:
+        name: nodejs-build
+      params:
+        - name: NODE_VERSION
+          value: "18"
+        - name: NPM_COMMAND
+          value: "install"
+        - name: BUILD_COMMAND
+          value: "run build"
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+        - name: cache
+          workspace: shared-workspace
+
+    # Task 3: Build Docker image
+    - name: build-image
+      runAfter: ["build-application"]
+      taskRef:
+        name: buildah
+      params:
+        - name: IMAGE
+          value: "$(params.image-repository):$(params.image-tag)"
+        - name: DOCKERFILE
+          value: "./Dockerfile"
+        - name: CONTEXT
+          value: "."
+        - name: TLSVERIFY
+          value: "false"
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+
+    # Task 4: Push image to registry
+    - name: push-image
+      runAfter: ["build-image"]
+      taskRef:
+        name: buildah
+      params:
+        - name: IMAGE
+          value: "$(params.image-repository):$(params.image-tag)"
+        - name: COMMAND
+          value: "push"
+        - name: TLSVERIFY
+          value: "false"
+
+    # Task 5: Deploy to OpenShift
+    - name: deploy-openshift
+      runAfter: ["push-image"]
+      taskRef:
+        name: openshift-client
+      params:
+        - name: SCRIPT
+          value: |
+            #!/bin/bash
+            set -e
+            
+            # Create project if it doesn't exist
+            oc new-project $(params.project-name) --display-name="Cloud Native Documentation" --description="Documentation for Cloud Native platform" 2>/dev/null || true
+            
+            # Switch to project
+            oc project $(params.project-name)
+            
+            # Deploy using Helm
+            helm upgrade --install cn-docs ./helm \
+              --namespace $(params.project-name) \
+              --set image.repository=$(params.image-repository) \
+              --set image.tag=$(params.image-tag) \
+              --set image.pullPolicy=Always \
+              --wait --timeout=10m
+            
+            # Get deployment status
+            oc get pods -n $(params.project-name)
+            oc get routes -n $(params.project-name)
+            
+            echo "Deployment completed successfully!"
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+
+    # Task 6: Run tests (optional)
+    - name: run-tests
+      runAfter: ["deploy-openshift"]
+      taskRef:
+        name: nodejs-test
+      params:
+        - name: NODE_VERSION
+          value: "18"
+        - name: NPM_COMMAND
+          value: "test"
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+        - name: cache
+          workspace: shared-workspace
+
+  finally:
+    # Cleanup and notifications
+    - name: cleanup
+      taskRef:
+        name: cleanup-workspace
+      workspaces:
+        - name: workspace
+          workspace: shared-workspace

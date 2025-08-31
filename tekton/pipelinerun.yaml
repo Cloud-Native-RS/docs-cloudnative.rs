@@ -1,0 +1,43 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: cn-docs-pipeline-run-$(uid)
+  namespace: cn-docs
+  labels:
+    app: cn-docs
+    pipeline: ci-cd
+    run: $(uid)
+spec:
+  pipelineRef:
+    name: cn-docs-pipeline
+  
+  params:
+    - name: git-url
+      value: "https://github.com/Cloud-Native-RS/docs-cloudnative.rs.git"
+    - name: git-revision
+      value: "main"
+    - name: image-repository
+      value: "image-registry.openshift-image-registry.svc:5000/cn-docs"
+    - name: image-tag
+      value: "latest"
+    - name: project-name
+      value: "cn-docs"
+  
+  workspaces:
+    - name: shared-workspace
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 1Gi
+  
+  timeout: 30m
+  
+  # Triggers
+  trigger:
+    name: cn-docs-trigger
+  
+  # ServiceAccount for pipeline execution
+  serviceAccountName: cn-docs-pipeline-sa
