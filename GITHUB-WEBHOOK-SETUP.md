@@ -28,6 +28,11 @@ application/json
 your-github-webhook-secret-here
 ```
 
+**IMPORTANT:** Get the actual secret from OpenShift:
+```bash
+oc get secret github-webhook-secret -n cn-docs -o jsonpath='{.data.secretToken}' | base64 -d
+```
+
 **Which events would you like to trigger this webhook?**
 - [x] Just the push event
 
@@ -81,6 +86,31 @@ oc get pipelinerun cn-docs-pipeline-run-post-commit -o yaml | \
 ✅ **Webhook Endpoint**: Dostupan javno  
 ✅ **Secret**: Konfigurisan  
 ✅ **Pipeline**: Testiran i funkcionalan  
-⚠️ **GitHub Webhook**: Treba da se konfigurirao ručno  
+✅ **Permission Issues**: Rešeni (security context, RBAC)  
+✅ **Manual Webhook Test**: Uspešan  
+⚠️ **GitHub Webhook**: Treba da se konfigurirao ručno u GitHub settings  
+
+## Testiranje
+
+### Manual Webhook Test (RADI! ✅)
+```bash
+# Test webhook manually
+./scripts/test-github-webhook.sh
+
+# Ili direktno curl
+curl -X POST http://el-cn-docs-event-listener-cn-docs.apps.ocp-5.datsci.softergee.si \
+  -H 'Content-Type: application/json' \
+  -H 'X-GitHub-Event: push' \
+  -d '{"ref": "refs/heads/main", "after": "'$(git rev-parse HEAD)'", "repository": {"clone_url": "https://github.com/Cloud-Native-RS/docs-cloudnative.rs.git"}}'
+```
+
+### Radi!
+- ✅ EventListener prima webhook request-e
+- ✅ TriggerTemplate kreira PipelineRun 
+- ✅ Pipeline se pokreće sa ispravnim security context-om
+- ✅ Permission issues su rešeni
+
+### Sledeći korak
+Konfigurišite GitHub webhook u browser-u da se automatski poziva na svaki git push.
 
 Kada konfigurirae webhook, svaki git push će automatski pokretati CI/CD pipeline!
