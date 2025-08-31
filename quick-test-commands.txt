@@ -1,0 +1,17 @@
+# Quick Test Commands
+
+# 1. Apply the fix (run from project root)
+./scripts/fix-pipeline-permissions.sh
+
+# 2. Start new pipeline run  
+oc create -f tekton/pipelinerun.yaml
+
+# 3. Monitor the pipeline
+oc logs -f -n cn-docs $(oc get pipelinerun -n cn-docs -o name | tail -1)
+
+# 4. Check build progress
+oc get builds -n cn-docs -w
+
+# 5. Verify deployment
+oc get pods -n cn-docs
+oc get routes -n cn-docs

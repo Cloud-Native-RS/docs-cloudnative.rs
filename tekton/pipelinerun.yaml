@@ -33,9 +33,14 @@ spec:
             requests:
               storage: 1Gi
   
-  # TaskRun template with ServiceAccount
+  # TaskRun template with ServiceAccount and security context
   taskRunTemplate:
     serviceAccountName: cn-docs-pipeline-sa
+    podTemplate:
+      securityContext:
+        runAsNonRoot: false
+        runAsUser: 0
+        fsGroup: 0
   
   # Timeout for the entire pipeline
   timeouts:

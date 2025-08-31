@@ -153,11 +153,19 @@ spec:
           - name: create-s2i-build
             image: registry.redhat.io/openshift4/ose-cli:latest
             workingDir: $(workspaces.source.path)
+            env:
+              - name: HOME
+                value: $(workspaces.source.path)
+              - name: KUBECONFIG
+                value: $(workspaces.source.path)/.kube/config
             script: |
               #!/bin/bash
               set -xe
               
               echo "Creating S2I BuildConfig..."
+              
+              # Create .kube directory in workspace to avoid permission issues
+              mkdir -p $(workspaces.source.path)/.kube
               
               # Switch to the correct project
               oc project $(params.PROJECT_NAME)
@@ -214,11 +222,19 @@ spec:
           - name: deploy
             image: registry.redhat.io/openshift4/ose-cli:latest
             workingDir: $(workspaces.source.path)
+            env:
+              - name: HOME
+                value: $(workspaces.source.path)
+              - name: KUBECONFIG
+                value: $(workspaces.source.path)/.kube/config
             script: |
               #!/bin/bash
               set -xe
               
               echo "Deploying to OpenShift..."
+              
+              # Create .kube directory in workspace to avoid permission issues
+              mkdir -p $(workspaces.source.path)/.kube
               
               # Switch to project
               oc project $(params.PROJECT_NAME)
@@ -275,11 +291,19 @@ spec:
           - name: route-health-check
             image: registry.redhat.io/openshift4/ose-cli:latest
             workingDir: $(workspaces.source.path)
+            env:
+              - name: HOME
+                value: $(workspaces.source.path)
+              - name: KUBECONFIG
+                value: $(workspaces.source.path)/.kube/config
             script: |
               #!/bin/bash
               set -xe
               
               echo "🔍 Verifying route health for $(params.APP_NAME)"
+              
+              # Create .kube directory in workspace to avoid permission issues
+              mkdir -p $(workspaces.source.path)/.kube
               
               # Switch to project
               oc project $(params.NAMESPACE)
