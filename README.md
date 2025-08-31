@@ -69,16 +69,56 @@ docker run -p 3000:3000 cn-docs:latest
 
 ### 3. **OpenShift Deployment**
 ```bash
-# Deploy to OpenShift
+# Deploy to OpenShift with Helm
 ./deploy-openshift.sh latest
 
 # Or manually with Helm
 helm upgrade --install cn-docs ./helm --namespace cn-docs
 ```
 
+### 4. **Tekton CI/CD Pipeline**
+```bash
+# Deploy Tekton pipeline to OpenShift
+./deploy-tekton-pipeline.sh
+
+# Run pipeline manually
+oc apply -f tekton/pipelinerun.yaml
+
+# Monitor pipeline
+oc get pipelineruns -n cn-docs
+```
+
 ## 🔄 CI/CD Pipeline
 
-### **Automated Workflow**
+### **🚀 OpenShift Tekton Pipeline (Preporučeno)**
+```mermaid
+graph LR
+    A[Git Push] --> B[GitHub Webhook]
+    B --> C[OpenShift Tekton]
+    C --> D[Fetch Repository]
+    D --> E[Build Application]
+    E --> F[Build Docker Image]
+    F --> G[Push to Registry]
+    G --> H[Deploy to OpenShift]
+    H --> I[Run Tests]
+    I --> J[Production Ready]
+```
+
+### **Pipeline Stages**
+1. **🔍 Fetch Repository** - Git clone sa webhook trigger
+2. **🏗️ Build Application** - Node.js build sa pnpm
+3. **🐳 Build Docker Image** - Multi-stage Docker build sa Buildah
+4. **📦 Push Image** - Push na OpenShift Image Registry
+5. **🚀 Deploy OpenShift** - Helm-based deployment
+6. **🧪 Run Tests** - Test execution i validacija
+7. **🧹 Cleanup** - Workspace cleanup
+
+### **Trigger Conditions**
+- **Automatic:** Push to `main` branch (GitHub webhook)
+- **Manual:** Pipeline run sa OpenShift CLI
+- **Scheduled:** Cron-based triggers (konfigurabilno)
+
+### **🔄 GitHub Actions Alternative**
 ```mermaid
 graph LR
     A[Git Push] --> B[GitHub Actions]
@@ -89,16 +129,7 @@ graph LR
     F --> G[Production Ready]
 ```
 
-### **Pipeline Stages**
-1. **🔄 Test** - Node.js setup, dependency installation, build verification
-2. **🏗️ Build** - Docker image creation with multi-stage optimization
-3. **📦 Push** - Automatic push to GitHub Container Registry
-4. **🚀 Deploy** - Helm-based deployment to OpenShift cluster
-
-### **Trigger Conditions**
-- **Automatic:** Push to `main` or `develop` branches
-- **Manual:** GitHub Actions manual trigger
-- **Scheduled:** Daily deployment checks (configurable)
+**Note:** GitHub Actions je i dalje dostupan kao alternativna opcija
 
 ## 🐳 Docker & Containerization
 
@@ -161,8 +192,13 @@ oc logs -f deployment/cn-docs -n cn-docs
 
 ```
 cn-docs/
-├── .github/workflows/      # CI/CD pipeline configuration
+├── .github/workflows/      # GitHub Actions CI/CD (alternative)
 │   └── ci-cd.yml          # GitHub Actions workflow
+├── tekton/                 # OpenShift Tekton CI/CD pipeline
+│   ├── pipeline.yaml      # Main pipeline definition
+│   ├── pipelinerun.yaml   # Pipeline run template
+│   ├── trigger.yaml       # Webhook triggers
+│   └── rbac.yaml          # RBAC and ServiceAccounts
 ├── helm/                   # OpenShift/Kubernetes deployment
 │   ├── Chart.yaml         # Helm chart metadata
 │   ├── values.yaml        # Configuration values
@@ -182,6 +218,7 @@ cn-docs/
 ├── Dockerfile            # Multi-stage Docker build
 ├── docker-compose.yml    # Local development setup
 ├── deploy-openshift.sh   # OpenShift deployment script
+├── deploy-tekton-pipeline.sh # Tekton pipeline deployment
 └── package.json          # Dependencies and scripts
 ```
 
@@ -277,6 +314,16 @@ docker-compose down          # Stop services
 helm upgrade --install cn-docs ./helm --namespace cn-docs
 ```
 
+### **5. Tekton Pipeline (Automated)**
+```bash
+# Deploy pipeline
+./deploy-tekton-pipeline.sh
+
+# Pipeline se pokreće automatski na Git push
+# ili ručno sa:
+oc apply -f tekton/pipelinerun.yaml
+```
+
 ## 🔍 Monitoring & Troubleshooting
 
 ### **Health Checks**
@@ -332,7 +379,8 @@ oc port-forward svc/cn-docs 3000:3000 -n cn-docs
 
 - **[CI/CD Summary](CI-CD-SUMMARY.md)** - Complete pipeline overview
 - **[OpenShift Deployment](OPENSHIFT-DEPLOYMENT.md)** - Detailed deployment guide
-- **[GitHub Setup](GITHUB-SETUP.md)** - CI/CD configuration guide
+- **[Tekton Pipeline](TEKTON-PIPELINE.md)** - OpenShift Tekton CI/CD guide
+- **[GitHub Setup](GITHUB-SETUP.md)** - GitHub Actions configuration
 - **[Docker Compose](docker-compose.yml)** - Local development setup
 
 ## 📄 License
