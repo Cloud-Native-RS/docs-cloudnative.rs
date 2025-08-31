@@ -83,9 +83,31 @@ else
 fi
 
 echo -e "${GREEN}🎉 Deployment completed successfully!${NC}"
+
+# Run route health check
+echo ""
+echo -e "${YELLOW}🔍 Running route health check...${NC}"
+if [[ -f "scripts/route-health-check.sh" ]]; then
+    chmod +x scripts/route-health-check.sh
+    export NAMESPACE=${PROJECT_NAME}
+    export APP_NAME=${APP_NAME}
+    export SERVICE_NAME=${APP_NAME}
+    export ROUTE_HOSTNAME="cn-docs-cn-docs.apps.ocp-5.datsci.softergee.si"
+    
+    if ./scripts/route-health-check.sh check; then
+        echo -e "${GREEN}✅ Route health check passed${NC}"
+    else
+        echo -e "${YELLOW}⚠️  Route health check failed, but deployment completed${NC}"
+    fi
+else
+    echo -e "${YELLOW}⚠️  Route health check script not found, skipping...${NC}"
+fi
+
 echo ""
 echo -e "${YELLOW}Useful commands:${NC}"
 echo "  View logs: oc logs -f deployment/${APP_NAME} -n ${PROJECT_NAME}"
 echo "  Scale up: oc scale deployment/${APP_NAME} --replicas=3 -n ${PROJECT_NAME}"
 echo "  View project: oc project ${PROJECT_NAME}"
 echo "  Delete project: oc delete project ${PROJECT_NAME}"
+echo "  Check route health: ./scripts/route-health-check.sh check"
+echo "  Monitor route: ./scripts/route-monitor.sh monitor"

@@ -4,9 +4,6 @@ const withNextra = require('nextra')({
 })
 
 module.exports = withNextra({
-  // Enable standalone output for Docker
-  output: 'standalone',
-  
   // Add static file configuration
   async rewrites() {
     return [

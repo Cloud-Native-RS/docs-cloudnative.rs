@@ -1,12 +1,12 @@
 apiVersion: tekton.dev/v1
 kind: PipelineRun
 metadata:
-  name: cn-docs-pipeline-run-post-commit
+  name: cn-docs-pipeline-run-private-auth-test-v2
   namespace: cn-docs
   labels:
     app: cn-docs
     pipeline: ci-cd
-    run: post-commit
+    run: private-auth-test
 spec:
   pipelineRef:
     name: cn-docs-pipeline
@@ -19,7 +19,7 @@ spec:
     - name: image-repository
       value: "image-registry.openshift-image-registry.svc:5000/cn-docs/cn-docs"
     - name: image-tag
-      value: "latest"
+      value: "private-auth-test"
     - name: project-name
       value: "cn-docs"
   

@@ -31,10 +31,10 @@ spec:
       description: "Shared workspace for pipeline tasks"
 
   tasks:
-    # Task 1: Clone Git repository using simple git commands
+    # Task 1: Clone Git repository with authentication
     - name: git-clone
       taskSpec:
-        description: "Clone git repository"
+        description: "Clone git repository with authentication support"
         params:
           - name: url
             description: "git url to clone"
@@ -57,51 +57,25 @@ spec:
               #!/bin/sh
               set -xe
               
-              # Clean workspace completely
+              # Clean workspace
               rm -rf ./* .git || true
               
-              # Configure git to trust all directories
+              # Configure git
               export GIT_CONFIG_GLOBAL=/tmp/gitconfig
               git config --global safe.directory '*'
               git config --global http.sslVerify false
               
-              # Setup authentication credentials if available
-              if [ -f /tekton/creds/.gitconfig ]; then
-                echo "Using Git credentials from service account"
-                cp /tekton/creds/.gitconfig $HOME/.gitconfig
-                chmod 600 $HOME/.gitconfig
-              fi
-              
-              if [ -f /tekton/creds/.git-credentials ]; then
-                echo "Using Git credential store"
-                cp /tekton/creds/.git-credentials $HOME/.git-credentials
-                chmod 600 $HOME/.git-credentials
-                git config --global credential.helper store
-              fi
-              
-              # SSH setup if SSH key is available
-              if [ -f /tekton/creds/ssh-privatekey ]; then
-                echo "Setting up SSH authentication"
-                mkdir -p $HOME/.ssh
-                cp /tekton/creds/ssh-privatekey $HOME/.ssh/id_rsa
-                cp /tekton/creds/known_hosts $HOME/.ssh/known_hosts 2>/dev/null || true
-                chmod 600 $HOME/.ssh/id_rsa
-                chmod 700 $HOME/.ssh
-                eval "$(ssh-agent -s)"
-                ssh-add $HOME/.ssh/id_rsa
-              fi
-              
-              echo "Cloning repository: $(params.url)"
-              
-              # Clone the repository
-              if echo "$(params.url)" | grep -q "^git@"; then
-                # SSH URL
-                echo "Using SSH authentication"
-                export GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=no"
-                git clone $(params.url) .
+              # Setup authentication using mounted secrets
+              if [ -f /etc/git-secret/username ] && [ -f /etc/git-secret/password ]; then
+                echo "Using GitHub token authentication"
+                USERNAME=$(cat /etc/git-secret/username)
+                PASSWORD=$(cat /etc/git-secret/password)
+                # Create authenticated URL
+                AUTH_URL=$(echo "$(params.url)" | sed "s|https://github.com|https://$USERNAME:$PASSWORD@github.com|")
+                echo "Cloning with authentication..."
+                git clone "$AUTH_URL" .
               else
-                # HTTPS URL
-                echo "Using HTTPS authentication"
+                echo "No authentication found, trying public clone"
                 git clone $(params.url) .
               fi
               
@@ -110,8 +84,16 @@ spec:
               
               echo "Repository cloned successfully"
               echo "Current branch: $(git branch --show-current)"
-              echo "Last commit: $(git log -1 --oneline)"
               ls -la
+            volumeMounts:
+              - name: git-secret
+                mountPath: /etc/git-secret
+                readOnly: true
+        volumes:
+          - name: git-secret
+            secret:
+              secretName: github-auth-secret
+              optional: true
       params:
         - name: url
           value: $(params.git-url)
@@ -270,6 +252,58 @@ spec:
           value: $(params.image-tag)
         - name: PROJECT_NAME
           value: $(params.project-name)
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+
+    # Task 5: Verify and fix route health
+    - name: verify-route
+      runAfter: ["deploy"]
+      taskSpec:
+        description: "Verify route health and fix if needed"
+        params:
+          - name: APP_NAME
+            type: string
+          - name: NAMESPACE
+            type: string
+          - name: ROUTE_HOSTNAME
+            type: string
+        workspaces:
+          - name: source
+            description: "Source code workspace"
+        steps:
+          - name: route-health-check
+            image: registry.redhat.io/openshift4/ose-cli:latest
+            workingDir: $(workspaces.source.path)
+            script: |
+              #!/bin/bash
+              set -xe
+              
+              echo "🔍 Verifying route health for $(params.APP_NAME)"
+              
+              # Switch to project
+              oc project $(params.NAMESPACE)
+              
+              # Copy and run health check script
+              chmod +x scripts/route-health-check.sh
+              
+              # Set environment variables
+              export NAMESPACE=$(params.NAMESPACE)
+              export APP_NAME=$(params.APP_NAME)
+              export SERVICE_NAME=$(params.APP_NAME)
+              export ROUTE_HOSTNAME=$(params.ROUTE_HOSTNAME)
+              
+              # Run health check
+              ./scripts/route-health-check.sh check
+              
+              echo "✅ Route verification completed successfully"
+      params:
+        - name: APP_NAME
+          value: $(params.project-name)
+        - name: NAMESPACE
+          value: $(params.project-name)
+        - name: ROUTE_HOSTNAME
+          value: "cn-docs-cn-docs.apps.ocp-5.datsci.softergee.si"
       workspaces:
         - name: source
           workspace: shared-workspace
