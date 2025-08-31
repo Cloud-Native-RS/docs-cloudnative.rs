@@ -11,7 +11,7 @@ spec:
   
   params:
     - name: git-url
-      description: "Git repository URL"
+      description: "Git repository URL (HTTPS with token or SSH)"
       default: "https://github.com/Cloud-Native-RS/docs-cloudnative.rs.git"
     - name: git-revision
       description: "Git revision to build"
@@ -50,6 +50,9 @@ spec:
           - name: clone
             image: alpine/git:latest
             workingDir: $(workspaces.output.path)
+            env:
+              - name: HOME
+                value: /tekton/home
             script: |
               #!/bin/sh
               set -xe
@@ -57,23 +60,57 @@ spec:
               # Clean workspace completely
               rm -rf ./* .git || true
               
-              # Configure git to trust all directories (workaround for Tekton)
+              # Configure git to trust all directories
               export GIT_CONFIG_GLOBAL=/tmp/gitconfig
               git config --global safe.directory '*'
+              git config --global http.sslVerify false
               
-              # Initialize git repository
-              git init
+              # Setup authentication credentials if available
+              if [ -f /tekton/creds/.gitconfig ]; then
+                echo "Using Git credentials from service account"
+                cp /tekton/creds/.gitconfig $HOME/.gitconfig
+                chmod 600 $HOME/.gitconfig
+              fi
               
-              # Add remote origin
-              git remote add origin $(params.url)
+              if [ -f /tekton/creds/.git-credentials ]; then
+                echo "Using Git credential store"
+                cp /tekton/creds/.git-credentials $HOME/.git-credentials
+                chmod 600 $HOME/.git-credentials
+                git config --global credential.helper store
+              fi
               
-              # Fetch specific revision to avoid ownership issues
-              git fetch origin $(params.revision)
+              # SSH setup if SSH key is available
+              if [ -f /tekton/creds/ssh-privatekey ]; then
+                echo "Setting up SSH authentication"
+                mkdir -p $HOME/.ssh
+                cp /tekton/creds/ssh-privatekey $HOME/.ssh/id_rsa
+                cp /tekton/creds/known_hosts $HOME/.ssh/known_hosts 2>/dev/null || true
+                chmod 600 $HOME/.ssh/id_rsa
+                chmod 700 $HOME/.ssh
+                eval "$(ssh-agent -s)"
+                ssh-add $HOME/.ssh/id_rsa
+              fi
               
-              # Checkout the fetched revision
-              git checkout FETCH_HEAD
+              echo "Cloning repository: $(params.url)"
+              
+              # Clone the repository
+              if echo "$(params.url)" | grep -q "^git@"; then
+                # SSH URL
+                echo "Using SSH authentication"
+                export GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=no"
+                git clone $(params.url) .
+              else
+                # HTTPS URL
+                echo "Using HTTPS authentication"
+                git clone $(params.url) .
+              fi
+              
+              # Checkout specific revision
+              git checkout $(params.revision)
               
               echo "Repository cloned successfully"
+              echo "Current branch: $(git branch --show-current)"
+              echo "Last commit: $(git log -1 --oneline)"
               ls -la
       params:
         - name: url
