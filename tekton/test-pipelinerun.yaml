@@ -1,12 +1,12 @@
 apiVersion: tekton.dev/v1
 kind: PipelineRun
 metadata:
-  name: cn-docs-pipeline-run-complete-test
+  name: cn-docs-pipeline-run-post-commit
   namespace: cn-docs
   labels:
     app: cn-docs
     pipeline: ci-cd
-    run: complete-test
+    run: post-commit
 spec:
   pipelineRef:
     name: cn-docs-pipeline
@@ -19,7 +19,7 @@ spec:
     - name: image-repository
       value: "image-registry.openshift-image-registry.svc:5000/cn-docs/cn-docs"
     - name: image-tag
-      value: "v1.0"
+      value: "latest"
     - name: project-name
       value: "cn-docs"
   
