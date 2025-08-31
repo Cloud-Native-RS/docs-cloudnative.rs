@@ -41,6 +41,8 @@ spec:
         runAsNonRoot: false
         runAsUser: 0
         fsGroup: 0
+      # Disable affinity to avoid scheduling issues
+      affinity: {}
   
   # Timeout for the entire pipeline
   timeouts:

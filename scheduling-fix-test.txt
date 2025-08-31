@@ -1,0 +1,1 @@
+🚀 SCHEDULING FIX TEST: Disabled affinity rules for better pod scheduling
