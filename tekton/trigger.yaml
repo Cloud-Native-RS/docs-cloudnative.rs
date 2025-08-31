@@ -50,20 +50,22 @@ spec:
                   requests:
                     storage: 1Gi
         
-        # TaskRun template with ServiceAccount and security context
+        # TaskRun template matching successful configuration
         taskRunTemplate:
-          serviceAccountName: cn-docs-pipeline-sa
+          serviceAccountName: pipeline  # Using 'pipeline' like successful run
           podTemplate:
-            securityContext:
-              runAsNonRoot: false
-              runAsUser: 0
-              fsGroup: 0
-            # Disable affinity to avoid scheduling issues
+            tolerations:
+              - key: "node.ocs.openshift.io/storage"
+                operator: "Exists"
+                effect: "NoSchedule"
+              - key: "node-role.kubernetes.io/infra"
+                operator: "Exists"
+                effect: "NoSchedule"
             affinity: {}
         
-        # Timeout for the entire pipeline
+        # Timeout matching successful run
         timeouts:
-          pipeline: 30m
+          pipeline: 1h
 
 ---
 apiVersion: triggers.tekton.dev/v1alpha1

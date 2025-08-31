@@ -21,12 +21,10 @@ const config: DocsThemeConfig = {
     </div>
   ),
   project: {
-    link: 'https://github.com/darioristic/cn-docs',
+    link: 'https://github.com/Cloud-Native-RS/docs-cloudnative.rs',
   },
-  chat: {
-    link: 'https://discord.com',
-  },
-  docsRepositoryBase: 'https://github.com/darioristic/cn-docs',
+
+  docsRepositoryBase: 'https://github.com/Cloud-Native-RS/docs-cloudnative.rs',
   footer: {
     text: 'Cloud Native Internal Documentation',
   },
@@ -128,6 +126,7 @@ const config: DocsThemeConfig = {
     autoCollapse: false,
     toggleButton: true,
   },
+
 }
 
 export default config
