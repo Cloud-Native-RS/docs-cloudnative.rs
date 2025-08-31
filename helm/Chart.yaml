@@ -1,0 +1,19 @@
+apiVersion: v2
+name: cn-docs
+description: Cloud Native Documentation Platform
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+
+keywords:
+  - documentation
+  - cloud-native
+  - nextjs
+
+home: https://docs.cloudnative.rs
+sources:
+  - https://github.com/your-org/cn-docs
+
+maintainers:
+  - name: Your Name
+    email: your.email@example.com

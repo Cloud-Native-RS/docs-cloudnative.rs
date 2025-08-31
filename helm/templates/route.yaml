@@ -1,0 +1,23 @@
+{{- if .Values.openshift.route.enabled -}}
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: {{ include "cn-docs.fullname" . }}
+  labels:
+    {{- include "cn-docs.labels" . | nindent 4 }}
+  annotations:
+    openshift.io/host.generated: "false"
+spec:
+  host: {{ .Values.openshift.route.host }}
+  to:
+    kind: Service
+    name: {{ include "cn-docs.fullname" . }}
+    weight: 100
+  port:
+    targetPort: http
+  {{- if .Values.openshift.route.tls.enabled }}
+  tls:
+    termination: {{ .Values.openshift.route.tls.termination }}
+    insecureEdgeTerminationPolicy: {{ .Values.openshift.route.tls.insecureEdgeTerminationPolicy }}
+  {{- end }}
+{{- end }}
