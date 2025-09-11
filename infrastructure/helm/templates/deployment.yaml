@@ -52,8 +52,10 @@ spec:
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           env:
-            - name: NODE_ENV
-              value: "production"
+            {{- range $key, $value := .Values.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
             - name: PORT
               value: "3000"
             - name: HOSTNAME

@@ -239,28 +239,50 @@ spec:
               # Switch to project
               oc project $(params.PROJECT_NAME)
               
-              # Deploy using native OpenShift commands (since Helm might not be available)
-              echo "Creating/updating deployment..."
+              # Deploy using Helm (preferred method)
+              echo "Deploying using Helm..."
               
-              # Create or update deployment with correct image reference
-              oc create deployment cn-docs --image=$(params.IMAGE_REPOSITORY):$(params.IMAGE_TAG) --dry-run=client -o yaml | \
-              oc apply -f -
-              
-              # Expose the service if it doesn't exist
-              oc expose deployment cn-docs --port=3000 --target-port=3000 --dry-run=client -o yaml | \
-              oc apply -f -
-              
-              # Create route if it doesn't exist (simple approach)
-              oc expose service cn-docs || echo "Route might already exist"
-              
-              # Wait for deployment to be ready
-              oc rollout status deployment/cn-docs --timeout=300s
+              # Check if Helm is available
+              if command -v helm &> /dev/null; then
+                echo "Using Helm for deployment..."
+                
+                # Deploy using Helm chart
+                helm upgrade --install cn-docs ./infrastructure/helm \
+                  --namespace $(params.PROJECT_NAME) \
+                  --set image.repository=$(params.IMAGE_REPOSITORY) \
+                  --set image.tag=$(params.IMAGE_TAG) \
+                  --set image.pullPolicy=Always \
+                  --set openshift.route.host=docs.cloudnative.rs \
+                  --wait --timeout=10m
+                
+                echo "Helm deployment completed successfully!"
+              else
+                echo "Helm not available, using native OpenShift commands..."
+                
+                # Fallback to native OpenShift commands
+                oc create deployment cn-docs --image=$(params.IMAGE_REPOSITORY):$(params.IMAGE_TAG) --dry-run=client -o yaml | \
+                oc apply -f -
+                
+                # Expose the service if it doesn't exist
+                oc expose deployment cn-docs --port=3000 --target-port=3000 --dry-run=client -o yaml | \
+                oc apply -f -
+                
+                # Create route with custom domain
+                oc create route edge cn-docs \
+                  --service=cn-docs \
+                  --hostname=docs.cloudnative.rs \
+                  --dry-run=client -o yaml | \
+                oc apply -f -
+                
+                # Wait for deployment to be ready
+                oc rollout status deployment/cn-docs --timeout=300s
+                
+                echo "Native OpenShift deployment completed successfully!"
+              fi
               
               # Get deployment status
               oc get pods -n $(params.PROJECT_NAME)
               oc get routes -n $(params.PROJECT_NAME)
-              
-              echo "Deployment completed successfully!"
       params:
         - name: IMAGE_REPOSITORY
           value: $(params.image-repository)
@@ -327,7 +349,7 @@ spec:
         - name: NAMESPACE
           value: $(params.project-name)
         - name: ROUTE_HOSTNAME
-          value: "cn-docs-cn-docs.apps.ocp-5.datsci.softergee.si"
+          value: "docs.cloudnative.rs"
       workspaces:
         - name: source
           workspace: shared-workspace

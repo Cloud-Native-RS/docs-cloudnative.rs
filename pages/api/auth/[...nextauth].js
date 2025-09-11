@@ -1,69 +1,87 @@
 import NextAuth from 'next-auth'
-import GithubProvider from 'next-auth/providers/github'
+import GitHubProvider from 'next-auth/providers/github'
+import CredentialsProvider from 'next-auth/providers/credentials'
 
 export default NextAuth({
+  debug: process.env.NODE_ENV === 'development',
   providers: [
-    GithubProvider({
-      clientId: process.env.GITHUB_ID,
-      clientSecret: process.env.GITHUB_SECRET,
+    // Development credentials provider for testing
+    ...(process.env.NODE_ENV === 'development' ? [
+      CredentialsProvider({
+        id: 'demo',
+        name: 'Demo Login',
+        credentials: {
+          username: { label: 'Username', type: 'text', placeholder: 'demo' }
+        },
+        async authorize(credentials) {
+          if (credentials?.username === 'demo') {
+            return {
+              id: '1',
+              name: 'Demo User',
+              email: 'demo@example.com',
+              image: 'https://avatars.githubusercontent.com/u/1?v=4'
+            }
+          }
+          return null
+        }
+      })
+    ] : []),
+    // GitHub provider for production
+    GitHubProvider({
+      clientId: process.env.GITHUB_ID || 'test-client-id',
+      clientSecret: process.env.GITHUB_SECRET || 'test-client-secret',
       authorization: {
         params: {
-          scope: 'read:user user:email read:org',
-        },
-      },
+          scope: 'read:user user:email read:org'
+        }
+      }
     })
   ],
   callbacks: {
-    async signIn({ user, account, profile }) {
-      if (account.provider === 'github') {
+    async signIn({ user, account }) {
+      // Allow demo login in development
+      if (account?.provider === 'demo') {
+        return true
+      }
+      
+      // Check organization membership for GitHub
+      if (process.env.GITHUB_ORG && account?.provider === 'github' && account?.access_token) {
         try {
-          // Proverava da li je korisnik član Cloud Native organizacije
-          const response = await fetch(
-            `https://api.github.com/orgs/${process.env.GITHUB_ORG}/members/${profile.login}`,
-            {
-              headers: {
-                Authorization: `token ${account.access_token}`,
-                'User-Agent': 'CN-Docs-App',
-              },
+          console.log(`Checking organization membership for ${user.login} in ${process.env.GITHUB_ORG}`)
+          const response = await fetch(`https://api.github.com/orgs/${process.env.GITHUB_ORG}/members/${user.login}`, {
+            headers: {
+              'Authorization': `Bearer ${account.access_token}`,
+              'Accept': 'application/vnd.github.v3+json',
+              'User-Agent': 'Cloud-Native-Docs'
             }
-          );
-          
-          // GitHub vraća 204 ako je korisnik član, 404 ako nije
-          if (response.status === 204) {
-            return true;
-          } else {
-            console.log(`Access denied for user ${profile.login}: not a member of ${process.env.GITHUB_ORG} organization`);
-            return false;
-          }
+          })
+          const isMember = response.ok
+          console.log(`Organization membership check result: ${isMember}`)
+          return isMember
         } catch (error) {
-          console.error('Error checking organization membership:', error);
-          return false;
+          console.error('Error checking organization membership:', error)
+          return false
         }
       }
-      return true;
+      return true
     },
-    async jwt({ token, account, profile }) {
-      // Persist the OAuth access_token to the token right after signin
+    async jwt({ token, account }) {
       if (account) {
-        token.accessToken = account.access_token;
-        token.githubLogin = profile?.login;
+        token.accessToken = account.access_token
       }
-      return token;
+      return token
     },
     async session({ session, token }) {
-      // Send properties to the client, like an access_token from a provider.
-      session.accessToken = token.accessToken;
-      session.githubLogin = token.githubLogin;
-      return session;
-    },
+      session.accessToken = token.accessToken
+      return session
+    }
   },
   pages: {
-    signIn: '/auth/signin',
-    signOut: '/auth/signout',
-    error: '/auth/error', // Error code passed in query string as ?error=
+    signIn: '/login',
+    error: '/auth/error'
   },
   session: {
-    strategy: 'jwt',
+    strategy: 'jwt'
   },
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: process.env.NEXTAUTH_SECRET
 })

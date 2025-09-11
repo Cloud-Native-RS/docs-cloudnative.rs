@@ -1,0 +1,223 @@
+# Deployment
+
+This section covers various deployment strategies and configurations for cloud-native applications.
+
+## Deployment Strategies
+
+### Blue-Green Deployment
+
+A blue-green deployment involves running two identical production environments called Blue and Green.
+
+**Benefits:**
+- Zero-downtime deployments
+- Easy rollback capability
+- Reduced risk
+
+**Process:**
+1. Deploy new version to Green environment
+2. Test Green environment thoroughly
+3. Switch traffic from Blue to Green
+4. Keep Blue as rollback option
+
+### Rolling Deployment
+
+Rolling deployments gradually replace instances of the previous version with new instances.
+
+**Benefits:**
+- Minimal resource overhead
+- Gradual rollout
+- Easy to monitor
+
+**Process:**
+1. Deploy new version to subset of instances
+2. Monitor health and performance
+3. Gradually increase traffic to new instances
+4. Complete rollout when confident
+
+### Canary Deployment
+
+Canary deployments route a small percentage of traffic to the new version.
+
+**Benefits:**
+- Low-risk testing
+- Real-world validation
+- Easy rollback
+
+**Process:**
+1. Deploy new version alongside existing
+2. Route small percentage of traffic to new version
+3. Monitor metrics and user feedback
+4. Gradually increase traffic or rollback
+
+## Container Deployment
+
+### Docker Configuration
+
+```dockerfile
+FROM node:18-alpine
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci --only=production
+
+COPY . .
+
+EXPOSE 3000
+
+CMD ["npm", "start"]
+```
+
+### Kubernetes Deployment
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: docs-app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: docs-app
+  template:
+    metadata:
+      labels:
+        app: docs-app
+    spec:
+      containers:
+      - name: docs-app
+        image: docs-app:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: NODE_ENV
+          value: "production"
+```
+
+## Environment Configuration
+
+### Production Environment
+
+```env
+NODE_ENV=production
+NEXTAUTH_URL=https://docs.cloudnative.rs
+NEXTAUTH_SECRET=your-production-secret
+GITHUB_ID=your-github-client-id
+GITHUB_SECRET=your-github-client-secret
+GITHUB_ORG=Cloud-Native-RS
+```
+
+### Staging Environment
+
+```env
+NODE_ENV=staging
+NEXTAUTH_URL=https://staging.docs.cloudnative.rs
+NEXTAUTH_SECRET=your-staging-secret
+GITHUB_ID=your-github-client-id
+GITHUB_SECRET=your-github-client-secret
+GITHUB_ORG=Cloud-Native-RS
+```
+
+## CI/CD Pipeline
+
+### GitHub Actions Workflow
+
+```yaml
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Build application
+      run: npm run build
+    
+    - name: Deploy to production
+      run: |
+        # Your deployment commands here
+        echo "Deploying to production..."
+```
+
+## Monitoring and Health Checks
+
+### Health Check Endpoint
+
+```typescript
+// pages/api/health.ts
+export default function handler(req, res) {
+  res.status(200).json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  })
+}
+```
+
+### Monitoring Setup
+
+1. **Application Metrics**: Track response times, error rates
+2. **Infrastructure Metrics**: CPU, memory, disk usage
+3. **Log Aggregation**: Centralized logging system
+4. **Alerting**: Set up alerts for critical issues
+
+## Security Considerations
+
+### Environment Variables
+
+- Never commit secrets to version control
+- Use secure secret management
+- Rotate secrets regularly
+- Use different secrets for different environments
+
+### Network Security
+
+- Use HTTPS in production
+- Configure proper CORS settings
+- Implement rate limiting
+- Use security headers
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Build Failures**: Check dependencies and environment variables
+2. **Runtime Errors**: Review logs and configuration
+3. **Performance Issues**: Monitor resource usage and optimize
+4. **Authentication Problems**: Verify OAuth configuration
+
+### Debug Commands
+
+```bash
+# Check application logs
+kubectl logs -f deployment/docs-app
+
+# Check pod status
+kubectl get pods
+
+# Check service status
+kubectl get services
+
+# Check ingress configuration
+kubectl get ingress
+```
+
+---
+
+*For more specific deployment scenarios, check the individual guides in this section.*

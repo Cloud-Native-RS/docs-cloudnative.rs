@@ -54,13 +54,27 @@ pull_image() {
 # Function to run container on port 8080
 run_container() {
     echo "🐳 Starting container on port 8080..."
-    docker run -d \
-        --name $CONTAINER_NAME \
-        -p $PUBLISHED_PORT:$CONTAINER_PORT \
-        --restart unless-stopped \
-        -e NODE_ENV=production \
-        -e NEXT_TELEMETRY_DISABLED=1 \
-        $IMAGE_NAME
+    
+    # Check if .env file exists
+    if [ -f "/opt/cloud-native-docs/.env" ]; then
+        echo "📋 Using environment file: /opt/cloud-native-docs/.env"
+        docker run -d \
+            --name $CONTAINER_NAME \
+            -p $PUBLISHED_PORT:$CONTAINER_PORT \
+            --restart unless-stopped \
+            --env-file /opt/cloud-native-docs/.env \
+            $IMAGE_NAME
+    else
+        echo "⚠️  No .env file found. Using default environment variables."
+        echo "   Run setup-env.sh to create environment file."
+        docker run -d \
+            --name $CONTAINER_NAME \
+            -p $PUBLISHED_PORT:$CONTAINER_PORT \
+            --restart unless-stopped \
+            -e NODE_ENV=production \
+            -e NEXT_TELEMETRY_DISABLED=1 \
+            $IMAGE_NAME
+    fi
     
     echo "✅ Container started successfully"
     

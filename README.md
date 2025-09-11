@@ -9,6 +9,13 @@ Comprehensive documentation for Cloud Native technologies, deployment strategies
 
 ## 🌟 Features
 
+### 🔐 **Secure Authentication**
+- **GitHub OAuth** integration with NextAuth.js
+- **Organization-based access control** for team members
+- **Protected routes** - all content requires authentication
+- **Session management** with automatic refresh
+- **Secure login page** with modern UI
+
 ### 🚀 **CI/CD Pipeline**
 - **Automated deployment** to OpenShift on every push to main branch
 - **GitHub Actions** workflow for testing, building, and deployment
@@ -21,6 +28,7 @@ Comprehensive documentation for Cloud Native technologies, deployment strategies
 - **Deployment** - Deployment strategies, architecture, and best practices
 - **Operations** - Cluster management, monitoring, and security
 - **Resources** - Tools, scripts, documentation, and best practices
+- **Troubleshooting** - Common issues and debugging procedures
 
 ### 🎯 **Projects & Sales**
 - **Project EDU/POC** - Educational and Proof of Concept projects
@@ -35,8 +43,9 @@ Comprehensive documentation for Cloud Native technologies, deployment strategies
 
 ## 🛠 Technologies
 
-- **Frontend:** Next.js 18 + Nextra Theme + MDX
-- **Styling:** CSS Modules + Tailwind CSS
+- **Frontend:** Next.js 15 + Nextra Theme + MDX + TypeScript
+- **Authentication:** NextAuth.js + GitHub OAuth
+- **Styling:** TailwindCSS + CSS Modules
 - **Containerization:** Docker + Multi-stage builds
 - **Orchestration:** Kubernetes + OpenShift + Helm
 - **CI/CD:** GitHub Actions + GitHub Container Registry
@@ -44,7 +53,23 @@ Comprehensive documentation for Cloud Native technologies, deployment strategies
 
 ## 🚀 Quick Start
 
-### 1. **Local Development**
+### 1. **Authentication Setup**
+```bash
+# Create GitHub OAuth App at: https://github.com/settings/developers
+# Set callback URL: http://localhost:3000/api/auth/callback/github
+
+# Copy environment variables
+cp env.example .env.local
+
+# Edit .env.local with your GitHub OAuth credentials
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your-secret-key-here
+GITHUB_ID=your-github-client-id
+GITHUB_SECRET=your-github-client-secret
+GITHUB_ORG=Cloud-Native-RS
+```
+
+### 2. **Local Development**
 ```bash
 # Clone the repository
 git clone https://github.com/Cloud-Native-RS/docs-cloudnative.rs.git
@@ -57,7 +82,7 @@ pnpm install
 pnpm dev
 ```
 
-### 2. **Docker Local Testing**
+### 3. **Docker Local Testing**
 ```bash
 # Build and run with Docker
 docker-compose up --build
@@ -67,7 +92,7 @@ docker build -t cn-docs:latest .
 docker run -p 3000:3000 cn-docs:latest
 ```
 
-### 3. **OpenShift Deployment**
+### 4. **OpenShift Deployment**
 ```bash
 # Deploy to OpenShift with Helm
 ./deploy-openshift.sh latest
@@ -76,7 +101,7 @@ docker run -p 3000:3000 cn-docs:latest
 helm upgrade --install cn-docs ./helm --namespace cn-docs
 ```
 
-### 4. **Tekton CI/CD Pipeline**
+### 5. **Tekton CI/CD Pipeline**
 ```bash
 # Deploy Tekton pipeline to OpenShift
 ./deploy-tekton-pipeline.sh

@@ -1,12 +1,11 @@
-apiVersion: tekton.dev/v1
+apiVersion: tekton.dev/v1beta1
 kind: PipelineRun
 metadata:
-  name: cn-docs-pipeline-run-complete
+  name: cn-docs-test-pipeline-run
   namespace: cn-docs
   labels:
     app: cn-docs
-    pipeline: ci-cd
-    run: final
+    pipeline: test
 spec:
   pipelineRef:
     name: cn-docs-pipeline
@@ -19,7 +18,7 @@ spec:
     - name: image-repository
       value: "image-registry.openshift-image-registry.svc:5000/cn-docs/cn-docs"
     - name: image-tag
-      value: "latest"
+      value: "test-$(date +%s)"
     - name: project-name
       value: "cn-docs"
   
@@ -33,17 +32,4 @@ spec:
             requests:
               storage: 1Gi
   
-  # TaskRun template with ServiceAccount and security context
-  taskRunTemplate:
-    serviceAccountName: cn-docs-pipeline-sa
-    podTemplate:
-      securityContext:
-        runAsNonRoot: false
-        runAsUser: 0
-        fsGroup: 0
-      # Disable affinity to avoid scheduling issues
-      affinity: {}
-  
-  # Timeout for the entire pipeline
-  timeouts:
-    pipeline: 1h
+  timeout: 30m

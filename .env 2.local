@@ -1,0 +1,14 @@
+# NextAuth.js Configuration
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=fMmYfKIU8CYvPX7/LMZ5CU7jCg0uzroT7te2d7k4LRQ=
+
+# GitHub OAuth App Configuration
+# Create a GitHub OAuth App at: https://github.com/settings/developers
+# Homepage URL: http://localhost:3000
+# Authorization callback URL: http://localhost:3000/api/auth/callback/github
+GITHUB_ID=your-github-client-id
+GITHUB_SECRET=your-github-client-secret
+
+# GitHub Organization Access Control
+# Only members of this organization will be allowed to login
+GITHUB_ORG=Cloud-Native-RS

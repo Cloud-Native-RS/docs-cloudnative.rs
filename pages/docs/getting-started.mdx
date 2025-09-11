@@ -1,0 +1,103 @@
+# Getting Started
+
+This guide will help you get up and running with our cloud-native documentation portal.
+
+## Prerequisites
+
+Before you begin, ensure you have:
+
+- A GitHub account with appropriate access
+- Basic understanding of cloud-native concepts
+- Access to the required development tools
+
+## Quick Start
+
+### 1. Authentication
+
+First, you need to authenticate with your GitHub account:
+
+1. Navigate to the login page
+2. Click "Sign in with GitHub"
+3. Authorize the application
+4. You'll be redirected to the documentation
+
+### 2. Navigation
+
+The documentation is organized into several main sections:
+
+- **Introduction**: Overview and getting started
+- **Deployment**: Deployment strategies and configurations
+- **Operations**: Operational procedures and monitoring
+- **Troubleshooting**: Common issues and solutions
+
+### 3. Search
+
+Use the search functionality to quickly find specific topics:
+
+- Press `Ctrl+K` (or `Cmd+K` on Mac) to open search
+- Type your query
+- Select from the results
+
+## Development Environment
+
+If you're contributing to this documentation:
+
+### Local Development
+
+```bash
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Start production server
+npm start
+```
+
+### Environment Variables
+
+Create a `.env.local` file with the following variables:
+
+```env
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your-secret-key
+GITHUB_ID=your-github-client-id
+GITHUB_SECRET=your-github-client-secret
+GITHUB_ORG=your-github-organization
+```
+
+## Best Practices
+
+When working with this documentation:
+
+1. **Keep it Updated**: Regularly update content to reflect current practices
+2. **Use Clear Language**: Write for your audience's technical level
+3. **Include Examples**: Provide practical examples and code snippets
+4. **Test Instructions**: Verify that all instructions work as written
+5. **Version Control**: Use proper Git practices for content changes
+
+## Contributing
+
+We welcome contributions! Here's how to contribute:
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
+## Next Steps
+
+Now that you're set up, explore the different sections:
+
+- [Deployment Guide](/docs/deployment) - Learn about deployment strategies
+- [Operations](/docs/operations) - Understand operational procedures
+- [Troubleshooting](/docs/troubleshooting) - Find solutions to common issues
+
+---
+
+*Ready to dive deeper? Check out the specific guides in each section!*

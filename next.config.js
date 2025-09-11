@@ -4,6 +4,11 @@ const withNextra = require('nextra')({
 })
 
 module.exports = withNextra({
+  // Configure for production domain
+  assetPrefix: process.env.ASSET_PREFIX || '',
+  basePath: '',
+  trailingSlash: false,
+  
   // Add static file configuration
   async rewrites() {
     return [
@@ -12,5 +17,10 @@ module.exports = withNextra({
         destination: '/static/:path*',
       },
     ]
+  },
+  
+  // Enable experimental features for Next.js 15
+  experimental: {
+    // Turbopack configuration
   },
 })
