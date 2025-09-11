@@ -259,23 +259,45 @@ spec:
               else
                 echo "Helm not available, using native OpenShift commands..."
                 
-                # Fallback to native OpenShift commands
-                oc create deployment cn-docs --image=$(params.IMAGE_REPOSITORY):$(params.IMAGE_TAG) --dry-run=client -o yaml | \
-                oc apply -f -
+                # Check if deployment exists
+                if oc get deployment cn-docs &> /dev/null; then
+                  echo "Deployment exists, updating image..."
+                  # Update existing deployment with new image
+                  oc set image deployment/cn-docs cn-docs=$(params.IMAGE_REPOSITORY):$(params.IMAGE_TAG)
+                  
+                  # Wait for rollout to complete
+                  oc rollout status deployment/cn-docs --timeout=300s
+                  
+                  echo "Deployment updated successfully!"
+                else
+                  echo "Creating new deployment..."
+                  # Create new deployment
+                  oc create deployment cn-docs --image=$(params.IMAGE_REPOSITORY):$(params.IMAGE_TAG)
+                  
+                  # Expose the service
+                  oc expose deployment cn-docs --port=3000 --target-port=3000
+                  
+                  # Create route with custom domain
+                  oc create route edge cn-docs \
+                    --service=cn-docs \
+                    --hostname=docs.cloudnative.rs
+                  
+                  # Wait for deployment to be ready
+                  oc rollout status deployment/cn-docs --timeout=300s
+                  
+                  echo "New deployment created successfully!"
+                fi
                 
-                # Expose the service if it doesn't exist
+                # Ensure service exists (create if missing)
                 oc expose deployment cn-docs --port=3000 --target-port=3000 --dry-run=client -o yaml | \
-                oc apply -f -
+                oc apply -f - || true
                 
-                # Create route with custom domain
+                # Ensure route exists (create if missing)
                 oc create route edge cn-docs \
                   --service=cn-docs \
                   --hostname=docs.cloudnative.rs \
                   --dry-run=client -o yaml | \
-                oc apply -f -
-                
-                # Wait for deployment to be ready
-                oc rollout status deployment/cn-docs --timeout=300s
+                oc apply -f - || true
                 
                 echo "Native OpenShift deployment completed successfully!"
               fi
