@@ -160,9 +160,22 @@ const config: DocsThemeConfig = {
                 });
                 
                 logoutButton.addEventListener('click', function() {
-                  console.log('Logout button clicked, redirecting to logout page...');
-                  // Redirect to logout page which will handle the logout process
-                  window.location.href = '/logout';
+                  console.log('Logout button clicked, calling server logout...');
+                  // Call server-side logout endpoint
+                  fetch('/api/logout-server', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                  }).then(() => {
+                    console.log('Server logout called, redirecting...');
+                    // Force redirect to login
+                    window.location.replace('/login');
+                  }).catch((error) => {
+                    console.error('Logout error:', error);
+                    // Force redirect even on error
+                    window.location.replace('/login');
+                  });
                 });
                 
                 logoutContainer.appendChild(logoutButton);
