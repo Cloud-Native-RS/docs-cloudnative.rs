@@ -158,8 +158,25 @@ const config: DocsThemeConfig = {
                 
                 logoutButton.addEventListener('click', async function() {
                   try {
-                    // Direct logout with callback URL to skip confirmation page
-                    window.location.href = '/api/auth/signout?callbackUrl=' + encodeURIComponent(window.location.origin + '/login');
+                    // Use our custom logout endpoint to skip confirmation page
+                    const response = await fetch('/api/logout', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                    });
+                    
+                    if (response.ok) {
+                      // Clear any local storage/session data
+                      localStorage.clear();
+                      sessionStorage.clear();
+                      
+                      // Redirect to login page
+                      window.location.href = '/login';
+                    } else {
+                      // Fallback to direct redirect
+                      window.location.href = '/login';
+                    }
                   } catch (error) {
                     console.error('Logout error:', error);
                     // Fallback to direct redirect
