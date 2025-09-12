@@ -2,7 +2,7 @@ import type { NextPage } from 'next'
 import { signIn, getSession } from 'next-auth/react'
 import { useRouter } from 'next/router'
 import { useEffect, useState } from 'react'
-import { GithubIcon, Mail, AlertCircle, Eye, EyeOff } from 'lucide-react'
+import { GithubIcon, User, AlertCircle, Eye, EyeOff } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button'
 
@@ -10,7 +10,7 @@ const LoginPage: NextPage = () => {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
 
@@ -53,30 +53,30 @@ const LoginPage: NextPage = () => {
     }
   }
 
-  const handleGoogleSignIn = async () => {
-    setIsLoading(true)
-    setError(null)
-    try {
-      // For now, we'll just show an error since Google OAuth isn't configured
-      setError('Google authentication is not yet configured. Please use GitHub login.')
-    } catch (error) {
-      console.error('Google sign in error:', error)
-      setError('Google authentication failed. Please try again.')
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleEmailSignIn = async (e: React.FormEvent) => {
+  const handleUsernameSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setError(null)
     try {
-      // For now, we'll just show an error since email authentication isn't configured
-      setError('Email authentication is not yet configured. Please use GitHub login.')
+      const result = await signIn('credentials', { 
+        username,
+        password,
+        callbackUrl: '/',
+        redirect: false 
+      })
+      
+      console.log('Username sign in result:', result)
+      
+      if (result?.ok) {
+        console.log('Username sign in successful, redirecting to home')
+        router.push('/')
+      } else {
+        console.error('Username sign in failed:', result?.error)
+        setError('Invalid username or password. Please try again.')
+      }
     } catch (error) {
-      console.error('Email sign in error:', error)
-      setError('Email authentication failed. Please try again.')
+      console.error('Username sign in error:', error)
+      setError('Authentication failed. Please try again.')
     } finally {
       setIsLoading(false)
     }
@@ -133,28 +133,15 @@ const LoginPage: NextPage = () => {
             </div>
           )}
 
-          {/* Social Login Buttons */}
-          <div className="grid grid-cols-2 gap-3 mb-6">
-            {/* Google Button */}
-            <Button 
-              onClick={handleGoogleSignIn}
-              disabled={isLoading}
-              className="h-12 bg-gray-800 hover:bg-gray-700 text-white border border-gray-600 hover:border-gray-500 transition-all duration-200"
-            >
-              <Mail className="mr-2 h-4 w-4" />
-              Google
-            </Button>
-
-            {/* GitHub Button */}
-            <Button 
-              onClick={handleGitHubSignIn}
-              disabled={isLoading}
-              className="h-12 bg-gray-800 hover:bg-gray-700 text-white border border-gray-600 hover:border-gray-500 transition-all duration-200"
-            >
-              <GithubIcon className="mr-2 h-4 w-4" />
-              GitHub
-            </Button>
-          </div>
+          {/* GitHub Login Button */}
+          <Button 
+            onClick={handleGitHubSignIn}
+            disabled={isLoading}
+            className="w-full h-12 bg-gray-800 hover:bg-gray-700 text-white border border-gray-600 hover:border-gray-500 transition-all duration-200 mb-6"
+          >
+            <GithubIcon className="mr-2 h-4 w-4" />
+            Sign in with GitHub
+          </Button>
 
           {/* Separator */}
           <div className="relative mb-6">
@@ -168,19 +155,19 @@ const LoginPage: NextPage = () => {
             </div>
           </div>
 
-          {/* Email/Password Form */}
-          <form onSubmit={handleEmailSignIn} className="space-y-4">
-            {/* Email Field */}
+          {/* Username/Password Form */}
+          <form onSubmit={handleUsernameSignIn} className="space-y-4">
+            {/* Username Field */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-white mb-2">
-                Email
+              <label htmlFor="username" className="block text-sm font-medium text-white mb-2">
+                Username
               </label>
               <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your email"
+                id="username"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Enter your username"
                 className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 required
               />
@@ -223,7 +210,7 @@ const LoginPage: NextPage = () => {
                   Signing in...
                 </>
               ) : (
-                'Login with Email'
+                'Login with Username'
               )}
             </Button>
           </form>
