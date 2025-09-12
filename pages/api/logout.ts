@@ -24,8 +24,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       'next-auth.pkce.code_verifier=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Lax'
     ])
 
-    // Redirect to login page
-    res.redirect(302, '/login')
+    // Return success response
+    res.status(200).json({ success: true, message: 'Logged out successfully' })
   } catch (error) {
     console.error('Logout error:', error)
     res.status(500).json({ message: 'Internal server error' })

@@ -166,7 +166,10 @@ const config: DocsThemeConfig = {
                       },
                     });
                     
-                    if (response.ok) {
+                    const result = await response.json();
+                    console.log('Logout response:', result);
+                    
+                    if (response.ok && result.success) {
                       // Clear any local storage/session data
                       localStorage.clear();
                       sessionStorage.clear();
@@ -174,6 +177,7 @@ const config: DocsThemeConfig = {
                       // Redirect to login page
                       window.location.href = '/login';
                     } else {
+                      console.error('Logout failed:', result.message);
                       // Fallback to direct redirect
                       window.location.href = '/login';
                     }
