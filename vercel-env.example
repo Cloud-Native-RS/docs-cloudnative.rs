@@ -1,0 +1,14 @@
+# Vercel Environment Variables
+# Add these in Vercel dashboard under Settings > Environment Variables
+
+# NextAuth Configuration
+NEXTAUTH_URL=https://docs-cloudnative-rs.vercel.app
+NEXTAUTH_SECRET=lpoOS0yqIpGIzfmSQxzWAu4Ca4WatstrHjThptAzrbw=
+
+# GitHub OAuth
+GITHUB_ID=Ov23liUg8b4ewgeslN3t
+GITHUB_SECRET=7d6e7c041a48f8b15400775bd289c8559c2f95ef
+GITHUB_ORG=Cloud-Native-RS
+
+# Next.js Configuration
+NEXT_TELEMETRY_DISABLED=1
