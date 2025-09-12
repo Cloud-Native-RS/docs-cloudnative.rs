@@ -156,8 +156,15 @@ const config: DocsThemeConfig = {
                   this.style.backgroundColor = 'white';
                 });
                 
-                logoutButton.addEventListener('click', function() {
-                  window.location.href = '/api/auth/signout';
+                logoutButton.addEventListener('click', async function() {
+                  try {
+                    // Direct logout with callback URL to skip confirmation page
+                    window.location.href = '/api/auth/signout?callbackUrl=' + encodeURIComponent(window.location.origin + '/login');
+                  } catch (error) {
+                    console.error('Logout error:', error);
+                    // Fallback to direct redirect
+                    window.location.href = '/login';
+                  }
                 });
                 
                 logoutContainer.appendChild(logoutButton);
