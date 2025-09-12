@@ -15,8 +15,11 @@ export default NextAuth({
         password: { label: 'Password', type: 'password' }
       },
       async authorize(credentials) {
+        console.log('Credentials received:', credentials)
+        
         // Simple demo credentials - replace with real authentication logic
         if (credentials.email === 'demo@cloudnative.rs' && credentials.password === 'demo123') {
+          console.log('Demo user authenticated successfully')
           return {
             id: '1',
             name: 'Demo User',
@@ -27,6 +30,7 @@ export default NextAuth({
         
         // You can add more users here or connect to a database
         if (credentials.email === 'admin@cloudnative.rs' && credentials.password === 'admin123') {
+          console.log('Admin user authenticated successfully')
           return {
             id: '2',
             name: 'Admin User',
@@ -35,6 +39,7 @@ export default NextAuth({
           }
         }
         
+        console.log('Invalid credentials provided')
         return null
       }
     })

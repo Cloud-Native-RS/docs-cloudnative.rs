@@ -55,6 +55,9 @@ const LoginPage: NextPage = () => {
     e.preventDefault()
     setIsLoading(true)
     setError(null)
+    
+    console.log('Attempting email sign in with:', { email, password })
+    
     try {
       const result = await signIn('credentials', { 
         email,
@@ -70,7 +73,7 @@ const LoginPage: NextPage = () => {
         router.push('/')
       } else {
         console.error('Email sign in failed:', result?.error)
-        setError('Invalid email or password. Please try again.')
+        setError(`Authentication failed: ${result?.error || 'Invalid email or password. Please try again.'}`)
       }
     } catch (error) {
       console.error('Email sign in error:', error)
