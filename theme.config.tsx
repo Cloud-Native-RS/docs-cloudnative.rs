@@ -119,6 +119,12 @@ const config: DocsThemeConfig = {
               const navbar = document.querySelector('.nextra-nav-container') || document.querySelector('nav') || document.querySelector('.navbar');
               
               if (navbar) {
+                // Get GitHub button size for reference
+                let githubButtonSize = '32px';
+                if (githubLink) {
+                  const githubRect = githubLink.getBoundingClientRect();
+                  githubButtonSize = githubRect.width + 'px';
+                }
                 // Create logout button container
                 const logoutContainer = document.createElement('div');
                 logoutContainer.className = 'logout-button-container';
@@ -142,8 +148,8 @@ const config: DocsThemeConfig = {
                   display: flex;
                   align-items: center;
                   justify-content: center;
-                  width: 40px;
-                  height: 40px;
+                  width: \${githubButtonSize};
+                  height: \${githubButtonSize};
                   border: 1px solid #d1d5db;
                   border-radius: 50%;
                   background: white;
