@@ -125,8 +125,8 @@ const config: DocsThemeConfig = {
                 logoutContainer.style.cssText = \`
                   display: flex;
                   align-items: center;
-                  gap: 8px;
-                  margin-left: 8px;
+                  gap: 4px;
+                  margin-left: 4px;
                 \`;
                 
                 // Create logout button
@@ -176,10 +176,16 @@ const config: DocsThemeConfig = {
                 
                 // Insert after GitHub link if exists, otherwise append to navbar
                 if (githubLink && githubLink.parentNode) {
+                  // Insert directly after GitHub link with no gap
                   githubLink.parentNode.insertBefore(logoutContainer, githubLink.nextSibling);
                 } else {
-                  // Append to navbar if no GitHub link found
-                  navbar.appendChild(logoutContainer);
+                  // Find the rightmost element in navbar and insert after it
+                  const rightmostElement = navbar.querySelector('a:last-child') || navbar.lastElementChild;
+                  if (rightmostElement && rightmostElement.parentNode) {
+                    rightmostElement.parentNode.insertBefore(logoutContainer, rightmostElement.nextSibling);
+                  } else {
+                    navbar.appendChild(logoutContainer);
+                  }
                 }
               }
             }
