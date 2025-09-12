@@ -119,12 +119,6 @@ const config: DocsThemeConfig = {
               const navbar = document.querySelector('.nextra-nav-container') || document.querySelector('nav') || document.querySelector('.navbar');
               
               if (navbar) {
-                // Get GitHub button size for reference
-                let githubButtonSize = '32px';
-                if (githubLink) {
-                  const githubRect = githubLink.getBoundingClientRect();
-                  githubButtonSize = githubRect.width + 'px';
-                }
                 // Create logout button container
                 const logoutContainer = document.createElement('div');
                 logoutContainer.className = 'logout-button-container';
@@ -135,8 +129,9 @@ const config: DocsThemeConfig = {
                   margin-left: 4px;
                 \`;
                 
-                // Create logout button
-                const logoutButton = document.createElement('button');
+                // Create logout button that matches GitHub button exactly
+                const logoutButton = document.createElement('a');
+                logoutButton.href = '#';
                 logoutButton.innerHTML = \`
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -148,15 +143,16 @@ const config: DocsThemeConfig = {
                   display: flex;
                   align-items: center;
                   justify-content: center;
-                  width: \${githubButtonSize};
-                  height: \${githubButtonSize};
-                  border: 1px solid #d1d5db;
+                  width: 32px;
+                  height: 32px;
                   border-radius: 50%;
                   background: white;
                   color: #000000;
                   cursor: pointer;
                   transition: all 0.2s ease;
                   padding: 0;
+                  text-decoration: none;
+                  border: none;
                 \`;
                 
                 // Add tooltip
@@ -172,7 +168,8 @@ const config: DocsThemeConfig = {
                   this.style.backgroundColor = 'white';
                 });
                 
-                logoutButton.addEventListener('click', function() {
+                logoutButton.addEventListener('click', function(e) {
+                  e.preventDefault();
                   console.log('Logout button clicked, redirecting to logout page...');
                   // Redirect to logout page which handles the logout process
                   window.location.href = '/logout';
