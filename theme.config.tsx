@@ -125,26 +125,29 @@ const config: DocsThemeConfig = {
                 // Create logout button
                 const logoutButton = document.createElement('button');
                 logoutButton.innerHTML = \`
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
                     <polyline points="16,17 21,12 16,7"/>
                     <line x1="21" y1="12" x2="9" y2="12"/>
                   </svg>
-                  Sign out
                 \`;
                 logoutButton.style.cssText = \`
                   display: flex;
                   align-items: center;
-                  padding: 6px 12px;
+                  justify-content: center;
+                  width: 40px;
+                  height: 40px;
                   border: 1px solid #d1d5db;
-                  border-radius: 6px;
+                  border-radius: 50%;
                   background: white;
                   color: #374151;
-                  font-size: 14px;
-                  font-weight: 400;
                   cursor: pointer;
                   transition: all 0.2s ease;
+                  padding: 0;
                 \`;
+                
+                // Add tooltip
+                logoutButton.setAttribute('title', 'Sign out');
                 
                 logoutButton.addEventListener('mouseenter', function() {
                   this.style.borderColor = '#000';
