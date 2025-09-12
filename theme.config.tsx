@@ -160,9 +160,9 @@ const config: DocsThemeConfig = {
                 });
                 
                 logoutButton.addEventListener('click', function() {
-                  console.log('Logout button clicked, calling logout API...');
-                  // Call logout API endpoint which clears cookies and redirects
-                  window.location.href = '/api/auth/logout';
+                  console.log('Logout button clicked, redirecting to logout page...');
+                  // Redirect to logout page which handles the logout process
+                  window.location.href = '/logout';
                 });
                 
                 logoutContainer.appendChild(logoutButton);
