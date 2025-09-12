@@ -161,8 +161,19 @@ const config: DocsThemeConfig = {
                 
                 logoutButton.addEventListener('click', async function() {
                   try {
-                    // Direct logout with callback URL to skip confirmation page
-                    window.location.href = '/api/auth/signout?callbackUrl=' + encodeURIComponent(window.location.origin + '/login');
+                    // Clear all NextAuth cookies manually
+                    document.cookie = 'next-auth.session-token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT;';
+                    document.cookie = 'next-auth.csrf-token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT;';
+                    document.cookie = 'next-auth.callback-url=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT;';
+                    document.cookie = 'next-auth.state=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT;';
+                    document.cookie = 'next-auth.pkce.code_verifier=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT;';
+                    
+                    // Clear local storage
+                    localStorage.clear();
+                    sessionStorage.clear();
+                    
+                    // Redirect to login page
+                    window.location.href = '/login';
                   } catch (error) {
                     console.error('Logout error:', error);
                     // Fallback to direct redirect
