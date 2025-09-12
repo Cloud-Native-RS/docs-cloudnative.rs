@@ -2,7 +2,7 @@
 # Add these in Vercel dashboard under Settings > Environment Variables
 
 # NextAuth Configuration
-NEXTAUTH_URL=https://docs-cloudnative-rs.vercel.app
+NEXTAUTH_URL=https://docs.cloudnative.rs
 NEXTAUTH_SECRET=lpoOS0yqIpGIzfmSQxzWAu4Ca4WatstrHjThptAzrbw=
 
 # GitHub OAuth

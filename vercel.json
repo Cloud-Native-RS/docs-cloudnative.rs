@@ -10,7 +10,7 @@
     }
   },
   "env": {
-    "NEXTAUTH_URL": "https://docs-cloudnative-rs.vercel.app",
+    "NEXTAUTH_URL": "https://docs.cloudnative.rs",
     "NEXTAUTH_SECRET": "lpoOS0yqIpGIzfmSQxzWAu4Ca4WatstrHjThptAzrbw="
   },
   "headers": [

@@ -24,7 +24,7 @@ git push origin main
 U Vercel dashboard-u, idite na **Settings > Environment Variables** i dodajte:
 
 ```
-NEXTAUTH_URL=https://docs-cloudnative-rs.vercel.app
+NEXTAUTH_URL=https://docs.cloudnative.rs
 NEXTAUTH_SECRET=lpoOS0yqIpGIzfmSQxzWAu4Ca4WatstrHjThptAzrbw=
 GITHUB_ID=Ov23liUg8b4ewgeslN3t
 GITHUB_SECRET=7d6e7c041a48f8b15400775bd289c8559c2f95ef
@@ -38,7 +38,7 @@ NEXT_TELEMETRY_DISABLED=1
 2. **Kliknite na vašu OAuth aplikaciju**
 3. **Ažurirajte Authorization callback URL:**
    ```
-   https://docs-cloudnative-rs.vercel.app/api/auth/callback/github
+   https://docs.cloudnative.rs/api/auth/callback/github
    ```
 
 ### 5. Deploy
@@ -55,12 +55,22 @@ NEXT_TELEMETRY_DISABLED=1
 ✅ **GitHub integracija** - automatski redeploy na push
 ✅ **Nema problema sa cookie-jima** - nativna Next.js podrška
 
-## Custom Domain (opciono)
+## Custom Domain Setup
 
 1. **U Vercel dashboard-u:** Settings > Domains
 2. **Dodajte:** `docs.cloudnative.rs`
-3. **Dodajte DNS rekorde** u vašem DNS provider-u
-4. **Ažurirajte GitHub OAuth callback URL** na custom domain
+3. **Vercel će vam dati DNS rekorde** koje treba da dodate:
+   ```
+   Type: CNAME
+   Name: docs
+   Value: cname.vercel-dns.com
+   
+   Type: A
+   Name: @
+   Value: 76.76.19.61
+   ```
+4. **Dodajte DNS rekorde** u vašem DNS provider-u
+5. **Čekajte da se propagira** (može potrajati do 24h)
 
 ## Troubleshooting
 
