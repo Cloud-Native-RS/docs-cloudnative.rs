@@ -2,15 +2,13 @@ import type { NextPage } from 'next'
 import { signIn, getSession } from 'next-auth/react'
 import { useRouter } from 'next/router'
 import { useEffect, useState } from 'react'
-import { GithubIcon, User, AlertCircle, Eye, EyeOff } from 'lucide-react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
-import { Button } from '../components/ui/button'
+import { GithubIcon, Mail, AlertCircle, Eye, EyeOff } from 'lucide-react'
 
 const LoginPage: NextPage = () => {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
 
@@ -53,29 +51,29 @@ const LoginPage: NextPage = () => {
     }
   }
 
-  const handleUsernameSignIn = async (e: React.FormEvent) => {
+  const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setError(null)
     try {
       const result = await signIn('credentials', { 
-        username,
+        email,
         password,
         callbackUrl: '/',
         redirect: false 
       })
       
-      console.log('Username sign in result:', result)
+      console.log('Email sign in result:', result)
       
       if (result?.ok) {
-        console.log('Username sign in successful, redirecting to home')
+        console.log('Email sign in successful, redirecting to home')
         router.push('/')
       } else {
-        console.error('Username sign in failed:', result?.error)
-        setError('Invalid username or password. Please try again.')
+        console.error('Email sign in failed:', result?.error)
+        setError('Invalid email or password. Please try again.')
       }
     } catch (error) {
-      console.error('Username sign in error:', error)
+      console.error('Email sign in error:', error)
       setError('Authentication failed. Please try again.')
     } finally {
       setIsLoading(false)
@@ -108,76 +106,111 @@ const LoginPage: NextPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
+        {/* Header Logo */}
+        <div className="text-center mb-8">
+          <div className="flex items-center justify-center mb-2">
+            <div className="w-8 h-8 bg-black rounded flex items-center justify-center mr-2">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="w-5 h-5 text-white"
+              >
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14,2 14,8 20,8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+                <polyline points="10,9 9,9 8,9"/>
+              </svg>
+            </div>
+            <span className="text-xl font-semibold text-black">Cloud Native RS</span>
+          </div>
+        </div>
+
         {/* Login Card */}
-        <div className="bg-gray-900 border border-gray-700 rounded-lg p-8">
-          {/* Header */}
+        <div className="bg-white rounded-lg shadow-sm p-8">
+          {/* Card Header */}
           <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-white mb-2">
-              Login
+            <h1 className="text-2xl font-bold text-black mb-2">
+              Welcome back
             </h1>
-            <p className="text-gray-400 text-sm">
-              Enter your credentials to access your account
+            <p className="text-gray-600 text-sm">
+              Login with your GitHub account
             </p>
           </div>
 
           {/* Error Message */}
           {error && (
-            <div className="bg-red-900/20 border border-red-500/50 rounded-lg p-4 mb-6 flex items-start space-x-3">
-              <AlertCircle className="h-5 w-5 text-red-400 mt-0.5 flex-shrink-0" />
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 flex items-start space-x-3">
+              <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0" />
               <div>
-                <p className="text-sm font-medium text-red-400">Authentication Error</p>
-                <p className="text-sm text-red-300 mt-1">{error}</p>
+                <p className="text-sm font-medium text-red-800">Authentication Error</p>
+                <p className="text-sm text-red-700 mt-1">{error}</p>
               </div>
             </div>
           )}
 
           {/* GitHub Login Button */}
-          <Button 
+          <button 
             onClick={handleGitHubSignIn}
             disabled={isLoading}
-            className="w-full h-12 bg-gray-800 hover:bg-gray-700 text-white border border-gray-600 hover:border-gray-500 transition-all duration-200 mb-6"
+            className="w-full h-12 bg-white border border-gray-300 rounded-lg text-black font-medium hover:bg-gray-50 transition-colors duration-200 flex items-center justify-center space-x-3 mb-6"
           >
-            <GithubIcon className="mr-2 h-4 w-4" />
-            Sign in with GitHub
-          </Button>
+            {isLoading ? (
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-black"></div>
+            ) : (
+              <>
+                <GithubIcon className="h-5 w-5" />
+                <span>Login with GitHub</span>
+              </>
+            )}
+          </button>
 
           {/* Separator */}
           <div className="relative mb-6">
             <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-gray-600" />
+              <span className="w-full border-t border-gray-300" />
             </div>
             <div className="relative flex justify-center text-xs">
-              <span className="bg-gray-900 text-gray-400 px-3 font-medium uppercase tracking-wide">
-                OR CONTINUE WITH
+              <span className="bg-white text-gray-500 px-3 font-medium">
+                Or continue with
               </span>
             </div>
           </div>
 
-          {/* Username/Password Form */}
-          <form onSubmit={handleUsernameSignIn} className="space-y-4">
-            {/* Username Field */}
+          {/* Email/Password Form */}
+          <form onSubmit={handleEmailSignIn} className="space-y-4">
+            {/* Email Field */}
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-white mb-2">
-                Username
+              <label htmlFor="email" className="block text-sm font-medium text-black mb-2">
+                Email
               </label>
               <input
-                id="username"
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter your username"
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="m@example.com"
+                className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 required
               />
             </div>
 
             {/* Password Field */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-white mb-2">
-                Password
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label htmlFor="password" className="block text-sm font-medium text-black">
+                  Password
+                </label>
+                <a href="#" className="text-sm text-gray-600 hover:text-gray-800">
+                  Forgot your password?
+                </a>
+              </div>
               <div className="relative">
                 <input
                   id="password"
@@ -185,13 +218,13 @@ const LoginPage: NextPage = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
-                  className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 pr-12"
+                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 pr-12"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors duration-200"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
                 >
                   {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
@@ -199,28 +232,38 @@ const LoginPage: NextPage = () => {
             </div>
 
             {/* Login Button */}
-            <Button 
+            <button 
               type="submit"
               disabled={isLoading}
-              className="w-full h-12 bg-white text-gray-900 hover:bg-gray-100 font-medium transition-all duration-200"
+              className="w-full h-12 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900 mr-3"></div>
-                  Signing in...
-                </>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mx-auto"></div>
               ) : (
-                'Login with Username'
+                'Login'
               )}
-            </Button>
+            </button>
           </form>
 
-          {/* Footer */}
-          <div className="text-center mt-8 pt-6 border-t border-gray-700">
-            <p className="text-xs text-gray-500">
-              © 2025 Cloud Native RS. All rights reserved.
+          {/* Sign Up Link */}
+          <div className="text-center mt-6">
+            <p className="text-sm text-gray-600">
+              Don't have an account?{' '}
+              <a href="#" className="text-black hover:underline font-medium">
+                Sign up
+              </a>
             </p>
           </div>
+        </div>
+
+        {/* Footer */}
+        <div className="text-center mt-8">
+          <p className="text-xs text-gray-500">
+            By clicking continue, you agree to our{' '}
+            <a href="#" className="underline hover:text-gray-700">Terms of Service</a>
+            {' '}and{' '}
+            <a href="#" className="underline hover:text-gray-700">Privacy Policy</a>.
+          </p>
         </div>
       </div>
     </div>

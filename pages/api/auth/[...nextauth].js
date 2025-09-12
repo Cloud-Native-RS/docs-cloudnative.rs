@@ -11,12 +11,12 @@ export default NextAuth({
     CredentialsProvider({
       name: 'credentials',
       credentials: {
-        username: { label: 'Username', type: 'text' },
+        email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' }
       },
       async authorize(credentials) {
         // Simple demo credentials - replace with real authentication logic
-        if (credentials.username === 'demo' && credentials.password === 'demo123') {
+        if (credentials.email === 'demo@cloudnative.rs' && credentials.password === 'demo123') {
           return {
             id: '1',
             name: 'Demo User',
@@ -26,7 +26,7 @@ export default NextAuth({
         }
         
         // You can add more users here or connect to a database
-        if (credentials.username === 'admin' && credentials.password === 'admin123') {
+        if (credentials.email === 'admin@cloudnative.rs' && credentials.password === 'admin123') {
           return {
             id: '2',
             name: 'Admin User',
