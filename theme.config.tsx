@@ -161,23 +161,39 @@ const config: DocsThemeConfig = {
                 
                 logoutButton.addEventListener('click', async function() {
                   try {
-                    // Clear all NextAuth cookies manually
-                    document.cookie = 'next-auth.session-token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT;';
-                    document.cookie = 'next-auth.csrf-token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT;';
-                    document.cookie = 'next-auth.callback-url=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT;';
-                    document.cookie = 'next-auth.state=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT;';
-                    document.cookie = 'next-auth.pkce.code_verifier=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT;';
+                    console.log('Logout button clicked');
                     
-                    // Clear local storage
+                    // Clear all cookies with different approaches
+                    const cookies = document.cookie.split(';');
+                    for (let cookie of cookies) {
+                      const eqPos = cookie.indexOf('=');
+                      const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+                      document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;';
+                      document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=' + window.location.hostname + ';';
+                      document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.' + window.location.hostname + ';';
+                    }
+                    
+                    // Clear all storage
                     localStorage.clear();
                     sessionStorage.clear();
                     
-                    // Redirect to login page
-                    window.location.href = '/login';
+                    // Clear IndexedDB if exists
+                    if ('indexedDB' in window) {
+                      indexedDB.databases().then(databases => {
+                        databases.forEach(db => {
+                          indexedDB.deleteDatabase(db.name);
+                        });
+                      });
+                    }
+                    
+                    console.log('Cookies and storage cleared, redirecting...');
+                    
+                    // Force redirect with replace to prevent back button
+                    window.location.replace('/login');
                   } catch (error) {
                     console.error('Logout error:', error);
-                    // Fallback to direct redirect
-                    window.location.href = '/login';
+                    // Force redirect even on error
+                    window.location.replace('/login');
                   }
                 });
                 
