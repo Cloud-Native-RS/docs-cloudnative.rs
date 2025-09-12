@@ -139,6 +139,11 @@ const config: DocsThemeConfig = {
                     <line x1="21" y1="12" x2="9" y2="12"/>
                   </svg>
                 \`;
+                // Check if dark theme is active
+                const isDarkTheme = document.documentElement.classList.contains('dark') || 
+                                   document.body.classList.contains('dark') ||
+                                   window.matchMedia('(prefers-color-scheme: dark)').matches;
+                
                 logoutButton.style.cssText = \`
                   display: flex;
                   align-items: center;
@@ -146,26 +151,26 @@ const config: DocsThemeConfig = {
                   width: 32px;
                   height: 32px;
                   border-radius: 50%;
-                  background: white;
-                  color: #000000;
+                  background: \${isDarkTheme ? '#1f2937' : 'white'};
+                  color: \${isDarkTheme ? '#ffffff' : '#000000'};
                   cursor: pointer;
                   transition: all 0.2s ease;
                   padding: 0;
                   text-decoration: none;
-                  border: 1px solid #d1d5db;
+                  border: 1px solid \${isDarkTheme ? '#374151' : '#d1d5db'};
                 \`;
                 
                 // Add tooltip
                 logoutButton.setAttribute('title', 'Sign out');
                 
                 logoutButton.addEventListener('mouseenter', function() {
-                  this.style.borderColor = '#000';
-                  this.style.backgroundColor = '#f9fafb';
+                  this.style.borderColor = isDarkTheme ? '#ffffff' : '#000';
+                  this.style.backgroundColor = isDarkTheme ? '#374151' : '#f9fafb';
                 });
                 
                 logoutButton.addEventListener('mouseleave', function() {
-                  this.style.borderColor = '#d1d5db';
-                  this.style.backgroundColor = 'white';
+                  this.style.borderColor = isDarkTheme ? '#374151' : '#d1d5db';
+                  this.style.backgroundColor = isDarkTheme ? '#1f2937' : 'white';
                 });
                 
                 logoutButton.addEventListener('click', function(e) {
