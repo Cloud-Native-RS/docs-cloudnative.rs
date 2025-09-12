@@ -46,15 +46,7 @@ export default NextAuth({
   ],
   callbacks: {
     async signIn({ user, account }) {
-      // Allow all GitHub users and credentials users
-      if (account?.provider === 'github') {
-        console.log(`GitHub login successful for user: ${user.name}`)
-        return true
-      }
-      if (account?.provider === 'credentials') {
-        console.log(`Credentials login successful for user: ${user.name}`)
-        return true
-      }
+      console.log(`Login attempt for user: ${user.name}, provider: ${account?.provider}`)
       return true
     }
   },
