@@ -103,18 +103,18 @@ const LoginPage: NextPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-white flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Header */}
-        <div className="text-center mb-8">
-          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 shadow-lg">
+        <div className="text-center mb-12">
+          <div className="mx-auto mb-8 flex h-20 w-20 items-center justify-center rounded-full bg-black">
             <svg
               viewBox="0 0 144 144"
               fill="currentColor"
               stroke="currentColor"
               xmlns="http://www.w3.org/2000/svg"
               strokeWidth="4"
-              className="h-10 w-10 text-white"
+              className="h-12 w-12 text-white"
               aria-label="Cloud Native Logo"
               role="img"
             >
@@ -122,115 +122,92 @@ const LoginPage: NextPage = () => {
               <path d="M108.411 31.0308L104.919 34.523C86.9284 52.5134 57.7601 52.5134 39.7697 34.523L36.2775 31.0308C34.8287 29.582 32.4797 29.582 31.0309 31.0308C29.5821 32.4796 29.5821 34.8286 31.0309 36.2773L34.5231 39.7695C52.5135 57.76 52.5135 86.9283 34.5231 104.919L31.0309 108.411C29.5821 109.86 29.5821 112.209 31.0309 113.657C32.4797 115.106 34.8287 115.106 36.2775 113.657L39.7697 110.165C57.7601 92.1748 86.9284 92.1748 104.919 110.165L108.411 113.657C109.86 115.106 112.209 115.106 113.658 113.657C115.106 112.209 115.106 109.86 113.658 108.411L110.165 104.919C92.1749 86.9283 92.1749 57.76 110.165 39.7695L113.658 36.2773C115.106 34.8286 115.106 32.4796 113.658 31.0308C112.209 29.582 109.86 29.582 108.411 31.0308Z" />
             </svg>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Welcome to Cloud Native Docs
+          <h1 className="text-3xl font-light text-black mb-3 tracking-tight">
+            Cloud Native Docs
           </h1>
-          <p className="text-gray-600">
-            Sign in to access the comprehensive documentation and resources
+          <p className="text-gray-600 font-light">
+            Sign in to access documentation
           </p>
         </div>
 
-        {/* Login Card */}
-        <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
-          <CardContent className="p-8 space-y-6">
-            {/* Error Message */}
-            {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start space-x-3">
-                <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="text-sm font-medium text-red-800">Authentication Error</p>
-                  <p className="text-sm text-red-700 mt-1">{error}</p>
-                </div>
+        {/* Login Form */}
+        <div className="bg-white border border-gray-200 rounded-lg p-8">
+          {/* Error Message */}
+          {error && (
+            <div className="bg-gray-50 border border-gray-300 rounded-lg p-4 mb-6 flex items-start space-x-3">
+              <AlertCircle className="h-5 w-5 text-black mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-black">Authentication Error</p>
+                <p className="text-sm text-gray-700 mt-1">{error}</p>
               </div>
-            )}
+            </div>
+          )}
 
-            {/* GitHub Sign In */}
-            <Button 
-              onClick={handleGitHubSignIn}
-              disabled={isLoading}
-              className="w-full h-14 text-base font-semibold bg-gray-900 hover:bg-gray-800 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-200"
-              size="lg"
-            >
-              {isLoading ? (
-                <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
-                  Signing in...
-                </>
-              ) : (
-                <>
-                  <GithubIcon className="mr-3 h-6 w-6" />
-                  Sign in with GitHub
-                  <ArrowRight className="ml-3 h-5 w-5" />
-                </>
-              )}
-            </Button>
-
-            {/* Development Demo Login */}
-            {process.env.NODE_ENV === 'development' && (
+          {/* GitHub Sign In */}
+          <Button 
+            onClick={handleGitHubSignIn}
+            disabled={isLoading}
+            className="w-full h-12 text-base font-light bg-black hover:bg-gray-800 text-white border-0 transition-colors duration-200"
+            size="lg"
+          >
+            {isLoading ? (
               <>
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t border-gray-200" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-white text-gray-500 px-3 font-medium">Or</span>
-                  </div>
-                </div>
-                
-                <Button 
-                  onClick={handleDemoSignIn}
-                  disabled={isLoading}
-                  variant="outline"
-                  className="w-full h-12 text-base border-2 border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                  size="lg"
-                >
-                  {isLoading ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-3"></div>
-                      Signing in...
-                    </>
-                  ) : (
-                    <>
-                      <Users className="mr-3 h-5 w-5" />
-                      Demo Login (Development Only)
-                    </>
-                  )}
-                </Button>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-3"></div>
+                Signing in...
+              </>
+            ) : (
+              <>
+                <GithubIcon className="mr-3 h-5 w-5" />
+                Sign in with GitHub
               </>
             )}
+          </Button>
 
-            {/* Features */}
-            <div className="space-y-3 pt-4 border-t border-gray-100">
-              <div className="flex items-center space-x-3 text-sm text-gray-600">
-                <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
-                <span>Secure authentication with GitHub</span>
+          {/* Development Demo Login */}
+          {process.env.NODE_ENV === 'development' && (
+            <>
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-gray-200" />
+                </div>
+                <div className="relative flex justify-center text-xs">
+                  <span className="bg-white text-gray-500 px-3 font-light">or</span>
+                </div>
               </div>
-              <div className="flex items-center space-x-3 text-sm text-gray-600">
-                <Shield className="h-4 w-4 text-green-500 flex-shrink-0" />
-                <span>Access to comprehensive documentation</span>
-              </div>
-              <div className="flex items-center space-x-3 text-sm text-gray-600">
-                <Lock className="h-4 w-4 text-green-500 flex-shrink-0" />
-                <span>Protected resources and guides</span>
-              </div>
-            </div>
+              
+              <Button 
+                onClick={handleDemoSignIn}
+                disabled={isLoading}
+                variant="outline"
+                className="w-full h-10 text-sm font-light border border-gray-300 hover:border-black hover:bg-gray-50"
+              >
+                {isLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-gray-600 mr-3"></div>
+                    Signing in...
+                  </>
+                ) : (
+                  'Demo Login (Development Only)'
+                )}
+              </Button>
+            </>
+          )}
 
-            {/* Footer */}
-            <div className="text-center pt-4">
-              <p className="text-xs text-gray-500">
-                {process.env.NODE_ENV === 'development' 
-                  ? 'Development environment - Use demo login for testing'
-                  : 'Access restricted to authorized users only'
-                }
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+          {/* Footer */}
+          <div className="text-center mt-8 pt-6 border-t border-gray-100">
+            <p className="text-xs text-gray-500 font-light">
+              {process.env.NODE_ENV === 'development' 
+                ? 'Development environment'
+                : 'Access restricted to authorized users only'
+              }
+            </p>
+          </div>
+        </div>
 
         {/* Footer */}
-        <div className="text-center mt-8">
-          <p className="text-xs text-gray-400">
-            © 2025 Cloud Native RS. All rights reserved.
+        <div className="text-center mt-12">
+          <p className="text-xs text-gray-400 font-light">
+            © 2025 Cloud Native RS
           </p>
         </div>
       </div>
