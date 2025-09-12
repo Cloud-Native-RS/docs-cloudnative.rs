@@ -152,7 +152,7 @@ const config: DocsThemeConfig = {
                   transition: all 0.2s ease;
                   padding: 0;
                   text-decoration: none;
-                  border: none;
+                  border: 1px solid #d1d5db;
                 \`;
                 
                 // Add tooltip
