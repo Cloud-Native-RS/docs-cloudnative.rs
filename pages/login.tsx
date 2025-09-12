@@ -131,10 +131,10 @@ const LoginPage: NextPage = () => {
         </div>
 
         {/* Login Form */}
-        <div className="bg-white border border-gray-200 rounded-lg p-8">
+        <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-8">
           {/* Error Message */}
           {error && (
-            <div className="bg-gray-50 border border-gray-300 rounded-lg p-4 mb-6 flex items-start space-x-3">
+            <div className="bg-gray-50 border-l-4 border-black rounded-lg p-4 mb-6 flex items-start space-x-3">
               <AlertCircle className="h-5 w-5 text-black mt-0.5 flex-shrink-0" />
               <div>
                 <p className="text-sm font-medium text-black">Authentication Error</p>
@@ -147,7 +147,7 @@ const LoginPage: NextPage = () => {
           <Button 
             onClick={handleGitHubSignIn}
             disabled={isLoading}
-            className="w-full h-12 text-base font-light bg-black hover:bg-gray-800 text-white border-0 transition-colors duration-200"
+            className="w-full h-12 text-base font-medium bg-black hover:bg-gray-800 text-white border-0 transition-all duration-200 hover:shadow-md"
             size="lg"
           >
             {isLoading ? (
@@ -159,6 +159,7 @@ const LoginPage: NextPage = () => {
               <>
                 <GithubIcon className="mr-3 h-5 w-5" />
                 Sign in with GitHub
+                <ArrowRight className="ml-auto h-4 w-4" />
               </>
             )}
           </Button>
@@ -179,7 +180,7 @@ const LoginPage: NextPage = () => {
                 onClick={handleDemoSignIn}
                 disabled={isLoading}
                 variant="outline"
-                className="w-full h-10 text-sm font-light border border-gray-300 hover:border-black hover:bg-gray-50"
+                className="w-full h-10 text-sm font-medium border border-gray-300 hover:border-black hover:bg-gray-50 transition-colors duration-200"
               >
                 {isLoading ? (
                   <>
@@ -187,17 +188,38 @@ const LoginPage: NextPage = () => {
                     Signing in...
                   </>
                 ) : (
-                  'Demo Login (Development Only)'
+                  <>
+                    <Users className="mr-3 h-4 w-4" />
+                    Demo Login (Development Only)
+                  </>
                 )}
               </Button>
             </>
           )}
 
+          {/* Features */}
+          <div className="mt-8 pt-6 border-t border-gray-100">
+            <div className="grid grid-cols-1 gap-3">
+              <div className="flex items-center space-x-3 text-sm text-gray-600">
+                <div className="w-2 h-2 bg-black rounded-full"></div>
+                <span className="font-light">Secure GitHub authentication</span>
+              </div>
+              <div className="flex items-center space-x-3 text-sm text-gray-600">
+                <div className="w-2 h-2 bg-black rounded-full"></div>
+                <span className="font-light">Access to comprehensive documentation</span>
+              </div>
+              <div className="flex items-center space-x-3 text-sm text-gray-600">
+                <div className="w-2 h-2 bg-black rounded-full"></div>
+                <span className="font-light">Protected resources and guides</span>
+              </div>
+            </div>
+          </div>
+
           {/* Footer */}
           <div className="text-center mt-8 pt-6 border-t border-gray-100">
             <p className="text-xs text-gray-500 font-light">
               {process.env.NODE_ENV === 'development' 
-                ? 'Development environment'
+                ? 'Development environment - Use demo login for testing'
                 : 'Access restricted to authorized users only'
               }
             </p>

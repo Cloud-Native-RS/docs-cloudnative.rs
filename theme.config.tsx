@@ -1,4 +1,5 @@
 import type { DocsThemeConfig } from 'nextra-theme-docs'
+import LogoutButton from './components/LogoutButton'
 
 const config: DocsThemeConfig = {
   logo: (
@@ -125,6 +126,13 @@ const config: DocsThemeConfig = {
     defaultMenuCollapseLevel: 1,
     autoCollapse: false,
     toggleButton: true,
+  },
+  navbar: {
+    component: (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginLeft: 'auto' }}>
+        <LogoutButton showUserInfo={true} />
+      </div>
+    )
   },
 
 }

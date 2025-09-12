@@ -123,7 +123,7 @@ const AuthErrorPage: NextPage = () => {
         </div>
 
         {/* Error Card */}
-        <div className="bg-white border border-gray-200 rounded-lg p-8">
+        <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-8">
           {/* Error Message */}
           <div className="text-center mb-8">
             <p className="text-gray-700 leading-relaxed font-light">
@@ -145,7 +145,7 @@ const AuthErrorPage: NextPage = () => {
           <div className="space-y-3">
             <Button 
               onClick={() => router.push('/login')} 
-              className="w-full h-12 bg-black hover:bg-gray-800 text-white font-light transition-colors duration-200"
+              className="w-full h-12 bg-black hover:bg-gray-800 text-white font-medium transition-all duration-200 hover:shadow-md"
             >
               <ArrowLeft className="mr-3 h-5 w-5" />
               Return to Login
@@ -154,17 +154,36 @@ const AuthErrorPage: NextPage = () => {
             <Button 
               onClick={() => router.push('/')} 
               variant="outline"
-              className="w-full h-10 border border-gray-300 hover:border-black hover:bg-gray-50 font-light"
+              className="w-full h-10 border border-gray-300 hover:border-black hover:bg-gray-50 font-medium transition-colors duration-200"
             >
               <Home className="mr-3 h-4 w-4" />
               Go to Homepage
             </Button>
           </div>
 
+          {/* Help Section */}
+          <div className="mt-8 pt-6 border-t border-gray-100">
+            <h3 className="font-medium text-black mb-3 text-center">Need Help?</h3>
+            <div className="space-y-2 text-sm text-gray-600">
+              <div className="flex items-center space-x-2">
+                <div className="w-1.5 h-1.5 bg-black rounded-full"></div>
+                <span className="font-light">Check your internet connection</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-1.5 h-1.5 bg-black rounded-full"></div>
+                <span className="font-light">Try refreshing the page</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-1.5 h-1.5 bg-black rounded-full"></div>
+                <span className="font-light">Contact support if the issue persists</span>
+              </div>
+            </div>
+          </div>
+
           {/* Footer */}
           <div className="text-center mt-8 pt-6 border-t border-gray-100">
             <p className="text-xs text-gray-500 font-light">
-              Contact support if the issue persists
+              If you continue to experience issues, please contact your system administrator.
             </p>
           </div>
         </div>
