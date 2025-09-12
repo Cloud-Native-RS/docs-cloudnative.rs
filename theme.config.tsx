@@ -109,9 +109,16 @@ const config: DocsThemeConfig = {
             }
             
             function addLogoutButton() {
-              // Find the GitHub link in the navbar
+              // Check if logout button already exists
+              if (document.querySelector('.logout-button-container')) {
+                return;
+              }
+              
+              // Find the GitHub link in the navbar or any navbar element
               const githubLink = document.querySelector('a[href*="github.com"]');
-              if (githubLink && !document.querySelector('.logout-button-container')) {
+              const navbar = document.querySelector('.nextra-nav-container') || document.querySelector('nav') || document.querySelector('.navbar');
+              
+              if (navbar) {
                 // Create logout button container
                 const logoutContainer = document.createElement('div');
                 logoutContainer.className = 'logout-button-container';
@@ -167,8 +174,13 @@ const config: DocsThemeConfig = {
                 
                 logoutContainer.appendChild(logoutButton);
                 
-                // Insert after GitHub link
-                githubLink.parentNode.insertBefore(logoutContainer, githubLink.nextSibling);
+                // Insert after GitHub link if exists, otherwise append to navbar
+                if (githubLink && githubLink.parentNode) {
+                  githubLink.parentNode.insertBefore(logoutContainer, githubLink.nextSibling);
+                } else {
+                  // Append to navbar if no GitHub link found
+                  navbar.appendChild(logoutContainer);
+                }
               }
             }
             
