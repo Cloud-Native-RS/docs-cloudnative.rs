@@ -1,5 +1,4 @@
 import type { DocsThemeConfig } from 'nextra-theme-docs'
-import LogoutButton from './components/LogoutButton'
 
 const config: DocsThemeConfig = {
   logo: (
@@ -68,7 +67,7 @@ const config: DocsThemeConfig = {
       `}</style>
       <script dangerouslySetInnerHTML={{
         __html: `
-          // Expand Get Started section by default
+          // Expand Get Started section by default and add logout button
           document.addEventListener('DOMContentLoaded', function() {
             function expandGetStarted() {
               // Find the Get Started navigation item
@@ -109,12 +108,78 @@ const config: DocsThemeConfig = {
               });
             }
             
+            function addLogoutButton() {
+              // Find the GitHub link in the navbar
+              const githubLink = document.querySelector('a[href*="github.com"]');
+              if (githubLink && !document.querySelector('.logout-button-container')) {
+                // Create logout button container
+                const logoutContainer = document.createElement('div');
+                logoutContainer.className = 'logout-button-container';
+                logoutContainer.style.cssText = \`
+                  display: flex;
+                  align-items: center;
+                  gap: 12px;
+                  margin-left: 16px;
+                \`;
+                
+                // Create logout button
+                const logoutButton = document.createElement('button');
+                logoutButton.innerHTML = \`
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                    <polyline points="16,17 21,12 16,7"/>
+                    <line x1="21" y1="12" x2="9" y2="12"/>
+                  </svg>
+                  Sign out
+                \`;
+                logoutButton.style.cssText = \`
+                  display: flex;
+                  align-items: center;
+                  padding: 6px 12px;
+                  border: 1px solid #d1d5db;
+                  border-radius: 6px;
+                  background: white;
+                  color: #374151;
+                  font-size: 14px;
+                  font-weight: 400;
+                  cursor: pointer;
+                  transition: all 0.2s ease;
+                \`;
+                
+                logoutButton.addEventListener('mouseenter', function() {
+                  this.style.borderColor = '#000';
+                  this.style.backgroundColor = '#f9fafb';
+                });
+                
+                logoutButton.addEventListener('mouseleave', function() {
+                  this.style.borderColor = '#d1d5db';
+                  this.style.backgroundColor = 'white';
+                });
+                
+                logoutButton.addEventListener('click', function() {
+                  window.location.href = '/api/auth/signout';
+                });
+                
+                logoutContainer.appendChild(logoutButton);
+                
+                // Insert after GitHub link
+                githubLink.parentNode.insertBefore(logoutContainer, githubLink.nextSibling);
+              }
+            }
+            
             // Try to expand immediately
             expandGetStarted();
+            addLogoutButton();
             
             // Also try after a short delay in case of async loading
-            setTimeout(expandGetStarted, 100);
-            setTimeout(expandGetStarted, 500);
+            setTimeout(() => {
+              expandGetStarted();
+              addLogoutButton();
+            }, 100);
+            setTimeout(() => {
+              expandGetStarted();
+              addLogoutButton();
+            }, 500);
           });
         `
       }} />
@@ -126,13 +191,6 @@ const config: DocsThemeConfig = {
     defaultMenuCollapseLevel: 1,
     autoCollapse: false,
     toggleButton: true,
-  },
-  navbar: {
-    component: (
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginLeft: 'auto' }}>
-        <LogoutButton showUserInfo={true} />
-      </div>
-    )
   },
 
 }
