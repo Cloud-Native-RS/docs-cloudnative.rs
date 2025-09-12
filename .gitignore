@@ -33,3 +33,20 @@ coverage/
 .idea/
 *.swp
 *.swo
+
+# Temporary files
+cookies.txt
+*.tmp
+*.temp
+
+# Test files
+*-test.yaml
+*test*.yaml
+manual-pipeline-*.yaml
+simple-test-*.yaml
+test-pipeline-*.yaml
+
+# Duplicate config files
+* 2.*
+* 2.js
+* 2.ts
