@@ -159,42 +159,10 @@ const config: DocsThemeConfig = {
                   this.style.backgroundColor = 'white';
                 });
                 
-                logoutButton.addEventListener('click', async function() {
-                  try {
-                    console.log('Logout button clicked');
-                    
-                    // Clear all cookies with different approaches
-                    const cookies = document.cookie.split(';');
-                    for (let cookie of cookies) {
-                      const eqPos = cookie.indexOf('=');
-                      const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
-                      document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;';
-                      document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=' + window.location.hostname + ';';
-                      document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.' + window.location.hostname + ';';
-                    }
-                    
-                    // Clear all storage
-                    localStorage.clear();
-                    sessionStorage.clear();
-                    
-                    // Clear IndexedDB if exists
-                    if ('indexedDB' in window) {
-                      indexedDB.databases().then(databases => {
-                        databases.forEach(db => {
-                          indexedDB.deleteDatabase(db.name);
-                        });
-                      });
-                    }
-                    
-                    console.log('Cookies and storage cleared, redirecting...');
-                    
-                    // Force redirect with replace to prevent back button
-                    window.location.replace('/login');
-                  } catch (error) {
-                    console.error('Logout error:', error);
-                    // Force redirect even on error
-                    window.location.replace('/login');
-                  }
+                logoutButton.addEventListener('click', function() {
+                  console.log('Logout button clicked, redirecting to logout page...');
+                  // Redirect to logout page which will handle the logout process
+                  window.location.href = '/logout';
                 });
                 
                 logoutContainer.appendChild(logoutButton);
