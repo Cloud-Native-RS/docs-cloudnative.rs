@@ -125,14 +125,14 @@ const config: DocsThemeConfig = {
                 logoutContainer.style.cssText = \`
                   display: flex;
                   align-items: center;
-                  gap: 12px;
-                  margin-left: 16px;
+                  gap: 8px;
+                  margin-left: 8px;
                 \`;
                 
                 // Create logout button
                 const logoutButton = document.createElement('button');
                 logoutButton.innerHTML = \`
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
                     <polyline points="16,17 21,12 16,7"/>
                     <line x1="21" y1="12" x2="9" y2="12"/>
@@ -142,8 +142,8 @@ const config: DocsThemeConfig = {
                   display: flex;
                   align-items: center;
                   justify-content: center;
-                  width: 32px;
-                  height: 32px;
+                  width: 40px;
+                  height: 40px;
                   border: 1px solid #d1d5db;
                   border-radius: 50%;
                   background: white;
